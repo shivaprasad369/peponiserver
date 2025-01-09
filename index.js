@@ -8,6 +8,8 @@ import cmsRoute from './Admin/cms.js';
 import faqRoute from './Admin/faq.js';
 import newsletterRoute from './Admin/newsletter.js';
 import blogRoute from './Admin/blog.js';
+import categoryRoute from './category/Add.js';
+import categoryUpdateRoute from './category/update.js';
 const app = express()
 
 const __filename = fileURLToPath(import.meta.url);
@@ -23,6 +25,8 @@ app.use("/cms",cmsRoute)
 app.use("/faq",faqRoute)
 app.use("/newsletter",newsletterRoute)
 app.use("/blog",blogRoute)
+app.use("/category",categoryRoute)
+app.use("/category/update",categoryUpdateRoute)
 
 app.get("/test-db", async (req, res) => {
     console.log("connected");
