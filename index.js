@@ -10,6 +10,9 @@ import newsletterRoute from './Admin/newsletter.js';
 import blogRoute from './Admin/blog.js';
 import categoryRoute from './category/Add.js';
 import categoryUpdateRoute from './category/update.js';
+import attributeRoute from './Attribute/attribute.mjs';
+import productRoute from './Product/product.mjs';
+import productImageRoute from './Product/ProductImage.js';
 const app = express()
 
 const __filename = fileURLToPath(import.meta.url);
@@ -27,7 +30,9 @@ app.use("/newsletter",newsletterRoute)
 app.use("/blog",blogRoute)
 app.use("/category",categoryRoute)
 app.use("/category/update",categoryUpdateRoute)
-
+app.use("/attribute",attributeRoute)
+app.use("/product",productRoute)
+app.use("/productimage",productImageRoute)
 app.get("/test-db", async (req, res) => {
     console.log("connected");
     try {
