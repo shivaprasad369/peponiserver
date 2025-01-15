@@ -13,6 +13,9 @@ import categoryUpdateRoute from './category/update.js';
 import attributeRoute from './Attribute/attribute.mjs';
 import productRoute from './Product/product.mjs';
 import productImageRoute from './Product/ProductImage.js';
+import cluster from 'cluster';
+import os from 'os';
+const numCPUs = os.cpus().length; 
 const app = express()
 
 const __filename = fileURLToPath(import.meta.url);
@@ -44,6 +47,20 @@ app.get("/test-db", async (req, res) => {
     }
   });
 
-app.listen(9000,()=>{
-    console.log('Server is running on port 9000')
-})
+
+
+  if (cluster.isPrimary) {
+    // Fork worker processes based on the number of CPU cores
+    for (let i = 0; i < numCPUs; i++) {
+      cluster.fork();
+    }
+  
+    cluster.on('exit', (worker, code, signal) => {
+      console.log(`Worker ${worker.process.pid} died`);
+    });
+  } else {
+    const PORT = process.env.PORT || 9000;
+    app.listen(PORT, () => {
+      console.log(`Worker ${process.pid} started on port ${PORT}`);
+    });
+  }

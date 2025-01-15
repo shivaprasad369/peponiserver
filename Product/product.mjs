@@ -104,8 +104,9 @@ productRoute.get("/attributes", async (req, res) => {
     res.status(200).json(groupedData);
     
 });
+
 productRoute.get("/", async (req, res) => {
-  
+  try{
     const query = `SELECT p.ProductName,p.ProductID,a.attribute_name, st.ProductImages,st.ProductImagesID, p.MetaTitle,c.CategoryName , p.metaDescription, p.MetaKeyWords, p.ProductPrice, p.DiscountPercentage, 
                    p.DiscountPrice, p.SellingPrice, p.CashPrice, p.CategoryID, p.SubCategoryIDone, p.SubCategoryIDtwo, p.Description, p.Image, 
                    pa.AttributeValueID, av.value FROM tbl_products p 
@@ -161,8 +162,14 @@ productRoute.get("/", async (req, res) => {
     
     
     res.status(200).json(groupedData);
+}catch(err){
+    console.error(err);
+    res.status(500).json({ message: "Internal server error", error: err });
+}
 });
+
 productRoute.put("/:id", upload.fields([{ name: 'newImage' }, { name: 'ProductImages' }]), async (req, res) => {
+   
     const { id } = req.params;
     const { 
         productName, metaTitle, metaDescription, metaKeyword, productPrice, discountPercentage, 
@@ -290,10 +297,8 @@ productRoute.delete("/:id", async (req, res) => {
         } else {
             console.log("No product found or image is missing");
         }
-
-        // Retrieve product images and delete each one
         const [productimages] = await db.query('SELECT * FROM tbl_productimages WHERE ProductID = ?', [id]);
-        console.log("Product images to delete:", productimages);  // Check what images are returned
+        console.log("Product images to delete:", productimages);  
 
         if (productimages.length > 0) {
             for (const image of productimages) {
@@ -301,7 +306,7 @@ productRoute.delete("/:id", async (req, res) => {
                 console.log("Product image path:", productImagePath);
                 if (productImagePath) {
                     const imagePath = path.join(__dirname, '..', productImagePath);
-                    console.log("Full path of product image:", imagePath);  // Ensure the full path is correct
+                    console.log("Full path of product image:", imagePath);
                     if (fs.existsSync(imagePath)) {
                         try {
                             fs.unlinkSync(imagePath);
@@ -316,15 +321,11 @@ productRoute.delete("/:id", async (req, res) => {
                     console.log("Product image path is undefined.");
                 }
             }
-
-            // Delete product images from the database after all are deleted
             await db.query('DELETE FROM tbl_productimages WHERE ProductID = ?', [id]);
             console.log("Product images deleted from database");
         } else {
             console.log("No product images found to delete.");
         }
-
-        // Delete the product from the database
         const [result] = await db.query('DELETE FROM tbl_products WHERE ProductID = ?', [id]);
         if (result.affectedRows > 0) {
             res.status(200).json({ message: "Product and associated images deleted successfully" });
