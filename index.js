@@ -15,6 +15,7 @@ import productRoute from './Product/product.mjs';
 import productImageRoute from './Product/ProductImage.js';
 import cluster from 'cluster';
 import os from 'os';
+import featureRoute from './Feature/feature.js';
 const numCPUs = os.cpus().length; 
 const app = express()
 
@@ -36,6 +37,7 @@ app.use("/category/update",categoryUpdateRoute)
 app.use("/attribute",attributeRoute)
 app.use("/product",productRoute)
 app.use("/productimage",productImageRoute)
+app.use("/feature",featureRoute)
 app.get("/test-db", async (req, res) => {
     console.log("connected");
     try {
