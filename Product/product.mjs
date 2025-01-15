@@ -74,67 +74,39 @@ productRoute.post('/', upload.fields([{ name: 'productImage' }, { name: 'Product
         res.status(500).json({ message: 'Internal server error', error: err });
     }
 });
-productRoute.get("/", async (req, res) => {
-  try{
-    const query = `SELECT p.ProductName,p.ProductID,a.attribute_name, st.ProductImages,st.ProductImagesID, p.MetaTitle,c.CategoryName , p.metaDescription, p.MetaKeyWords, p.ProductPrice, p.DiscountPercentage, 
-                   p.DiscountPrice, p.SellingPrice, p.CashPrice, p.CategoryID, p.SubCategoryIDone, p.SubCategoryIDtwo, p.Description, p.Image, 
-                   pa.AttributeValueID, av.value FROM tbl_products p 
-                   LEFT JOIN tbl_productattribute pa ON p.ProductID = pa.ProductID 
-                   LEFT JOIN attribute_values av ON pa.AttributeValueID = av.id
-                   LEFT JOIN attributes a ON av.attribute_id = a.id
-                   LEFT JOIN tbl_category c ON p.CategoryID = c.CategoryID
-                   LEFT JOIN tbl_productimages st ON st.ProductID = p.ProductID`;
-    const [result] = await db.query(query);
+productRoute.get("/attributes", async (req, res) => {
+    const {id} = req.query;
+    const [result] = await db.query(`
+        SELECT a.attribute_name, a.id, av.value ,av.id as valueId
+        FROM attributes a
+        LEFT JOIN attribute_values av ON a.id = av.attribute_id
+        WHERE a.subcategorytwo = ?
+    `, [id]);
     const groupedData = result.reduce((acc, item) => {
-        let product = acc.find(prod => 
-            prod.ProductID === item.ProductID
-        );
+        let group = acc.find(group => group.attribute_name === item.attribute_name);
     
-        if (!product) {
-            product = {
-                ProductID: item.ProductID,
-                ProductName: item.ProductName,
-                MetaTitle: item.MetaTitle,
-                CategoryName: item.CategoryName,
-                metaDescription: item.metaDescription,
-                MetaKeyWords: item.MetaKeyWords,
-                ProductPrice: item.ProductPrice,
-                DiscountPercentage: item.DiscountPercentage,
-                DiscountPrice: item.DiscountPrice,
-                SellingPrice: item.SellingPrice,
-                CashPrice: item.CashPrice,
-                CategoryID: item.CategoryID,
-                ProductImages:[],
-                SubCategoryIDone: item.SubCategoryIDone,
-                SubCategoryIDtwo: item.SubCategoryIDtwo,
-                Description: item.Description,
-                Image: item.Image,
-                values: []
+        if (!group) {
+            group = {
+                attribute_name: item.attribute_name,
+                id: item.id,
+                value: []
             };
-            acc.push(product);
+            acc.push(group);
         }
-        if(item.ProductImages){
-            product.ProductImages.push({ProductImages:item.ProductImages,ProductImagesID:item.ProductImagesID});
-        }
-
-        product.values.push({
-            AttributeValueID: item.AttributeValueID,
+        group.value.push({
             value: item.value,
-            attribute_name: item.attribute_name
+            valueId: item.valueId
         });
     
         return acc;
     }, []);
     
-    
     res.status(200).json(groupedData);
-}catch(err){
-    console.error(err);
-    res.status(500).json({ message: "Internal server error", error: err });
-}
+    
 });
+
 productRoute.get("/", async (req, res) => {
-  
+  try{
     const query = `SELECT p.ProductName,p.ProductID,a.attribute_name, st.ProductImages,st.ProductImagesID, p.MetaTitle,c.CategoryName , p.metaDescription, p.MetaKeyWords, p.ProductPrice, p.DiscountPercentage, 
                    p.DiscountPrice, p.SellingPrice, p.CashPrice, p.CategoryID, p.SubCategoryIDone, p.SubCategoryIDtwo, p.Description, p.Image, 
                    pa.AttributeValueID, av.value FROM tbl_products p 
@@ -190,8 +162,14 @@ productRoute.get("/", async (req, res) => {
     
     
     res.status(200).json(groupedData);
+}catch(err){
+    console.error(err);
+    res.status(500).json({ message: "Internal server error", error: err });
+}
 });
+
 productRoute.put("/:id", upload.fields([{ name: 'newImage' }, { name: 'ProductImages' }]), async (req, res) => {
+   
     const { id } = req.params;
     const { 
         productName, metaTitle, metaDescription, metaKeyword, productPrice, discountPercentage, 
@@ -319,10 +297,8 @@ productRoute.delete("/:id", async (req, res) => {
         } else {
             console.log("No product found or image is missing");
         }
-
-        // Retrieve product images and delete each one
         const [productimages] = await db.query('SELECT * FROM tbl_productimages WHERE ProductID = ?', [id]);
-        console.log("Product images to delete:", productimages);  // Check what images are returned
+        console.log("Product images to delete:", productimages);  
 
         if (productimages.length > 0) {
             for (const image of productimages) {
@@ -330,7 +306,7 @@ productRoute.delete("/:id", async (req, res) => {
                 console.log("Product image path:", productImagePath);
                 if (productImagePath) {
                     const imagePath = path.join(__dirname, '..', productImagePath);
-                    console.log("Full path of product image:", imagePath);  // Ensure the full path is correct
+                    console.log("Full path of product image:", imagePath);
                     if (fs.existsSync(imagePath)) {
                         try {
                             fs.unlinkSync(imagePath);
@@ -345,15 +321,11 @@ productRoute.delete("/:id", async (req, res) => {
                     console.log("Product image path is undefined.");
                 }
             }
-
-            // Delete product images from the database after all are deleted
             await db.query('DELETE FROM tbl_productimages WHERE ProductID = ?', [id]);
             console.log("Product images deleted from database");
         } else {
             console.log("No product images found to delete.");
         }
-
-        // Delete the product from the database
         const [result] = await db.query('DELETE FROM tbl_products WHERE ProductID = ?', [id]);
         if (result.affectedRows > 0) {
             res.status(200).json({ message: "Product and associated images deleted successfully" });
