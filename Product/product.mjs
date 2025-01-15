@@ -74,35 +74,64 @@ productRoute.post('/', upload.fields([{ name: 'productImage' }, { name: 'Product
         res.status(500).json({ message: 'Internal server error', error: err });
     }
 });
-productRoute.get("/attributes", async (req, res) => {
-    const {id} = req.query;
-    const [result] = await db.query(`
-        SELECT a.attribute_name, a.id, av.value ,av.id as valueId
-        FROM attributes a
-        LEFT JOIN attribute_values av ON a.id = av.attribute_id
-        WHERE a.subcategorytwo = ?
-    `, [id]);
+productRoute.get("/", async (req, res) => {
+  try{
+    const query = `SELECT p.ProductName,p.ProductID,a.attribute_name, st.ProductImages,st.ProductImagesID, p.MetaTitle,c.CategoryName , p.metaDescription, p.MetaKeyWords, p.ProductPrice, p.DiscountPercentage, 
+                   p.DiscountPrice, p.SellingPrice, p.CashPrice, p.CategoryID, p.SubCategoryIDone, p.SubCategoryIDtwo, p.Description, p.Image, 
+                   pa.AttributeValueID, av.value FROM tbl_products p 
+                   LEFT JOIN tbl_productattribute pa ON p.ProductID = pa.ProductID 
+                   LEFT JOIN attribute_values av ON pa.AttributeValueID = av.id
+                   LEFT JOIN attributes a ON av.attribute_id = a.id
+                   LEFT JOIN tbl_category c ON p.CategoryID = c.CategoryID
+                   LEFT JOIN tbl_productimages st ON st.ProductID = p.ProductID`;
+    const [result] = await db.query(query);
     const groupedData = result.reduce((acc, item) => {
-        let group = acc.find(group => group.attribute_name === item.attribute_name);
+        let product = acc.find(prod => 
+            prod.ProductID === item.ProductID
+        );
     
-        if (!group) {
-            group = {
-                attribute_name: item.attribute_name,
-                id: item.id,
-                value: []
+        if (!product) {
+            product = {
+                ProductID: item.ProductID,
+                ProductName: item.ProductName,
+                MetaTitle: item.MetaTitle,
+                CategoryName: item.CategoryName,
+                metaDescription: item.metaDescription,
+                MetaKeyWords: item.MetaKeyWords,
+                ProductPrice: item.ProductPrice,
+                DiscountPercentage: item.DiscountPercentage,
+                DiscountPrice: item.DiscountPrice,
+                SellingPrice: item.SellingPrice,
+                CashPrice: item.CashPrice,
+                CategoryID: item.CategoryID,
+                ProductImages:[],
+                SubCategoryIDone: item.SubCategoryIDone,
+                SubCategoryIDtwo: item.SubCategoryIDtwo,
+                Description: item.Description,
+                Image: item.Image,
+                values: []
             };
-            acc.push(group);
+            acc.push(product);
         }
-        group.value.push({
+        if(item.ProductImages){
+            product.ProductImages.push({ProductImages:item.ProductImages,ProductImagesID:item.ProductImagesID});
+        }
+
+        product.values.push({
+            AttributeValueID: item.AttributeValueID,
             value: item.value,
-            valueId: item.valueId
+            attribute_name: item.attribute_name
         });
     
         return acc;
     }, []);
     
-    res.status(200).json(groupedData);
     
+    res.status(200).json(groupedData);
+}catch(err){
+    console.error(err);
+    res.status(500).json({ message: "Internal server error", error: err });
+}
 });
 productRoute.get("/", async (req, res) => {
   
