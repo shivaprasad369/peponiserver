@@ -80,7 +80,7 @@ productRoute.get("/attributes", async (req, res) => {
         SELECT a.attribute_name, a.id, av.value ,av.id as valueId
         FROM attributes a
         LEFT JOIN attribute_values av ON a.id = av.attribute_id
-        WHERE a.subcategorytwo = ?
+        WHERE a.subcategory = ?
     `, [id]);
     const groupedData = result.reduce((acc, item) => {
         let group = acc.find(group => group.attribute_name === item.attribute_name);
