@@ -122,7 +122,7 @@ if(!categoryId || !subCategoryId || isNaN(categoryId) || isNaN(subCategoryId)){
 
 attributeRoute.put("/", async (req, res) => {
   const { Attributes, categoryId, subCategoryId } = req.body;
-console.log(Attributes[0].values[0].id);
+// console.log(Attributes[0].values[0].id);
   if (!Attributes || !Array.isArray(Attributes)) {
     return res.status(400).json({ message: "Attributes must be provided as an array" });
   }
@@ -218,16 +218,6 @@ console.log(Attributes[0].values[0].id);
       }
     }
 console.log("PresentedValues", PresentedValues);
-// if (PresentedValues.length > 0) {
-//   for (const valueArray of PresentedValues) {
-//     for (const value of valueArray) {
-//       await connection.query("DELETE FROM attribute_values WHERE id = ?", [value.id]);
-//       console.log(`Deleted value with id: ${value.id}`);
-//     }
-//   }
-    
-// }
-    // Commit the transaction if all queries are successful
     await connection.commit();
     res.status(200).json({ message: "Attributes and values updated successfully" });
   } catch (error) {
@@ -238,11 +228,7 @@ console.log("PresentedValues", PresentedValues);
     connection.release(); // Release the connection
   }
 });
-
-
-  
-  
-  attributeRoute.delete("/:id", async (req, res) => {
+attributeRoute.delete("/:id", async (req, res) => {
     const { id } = req.params;
     const connection = await db.getConnection();
     try {

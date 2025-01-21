@@ -9,7 +9,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 blogRoute.get("/", async (req, res) => {
     try {
-        const [result] = await db.query("SELECT id,title,shortdesc,description,image,author FROM blogs");
+        const [result] = await db.query("SELECT id,title,shortdesc,description,image,author,created_at FROM blogs");
         if(result.length === 0){
             return res.status(404).json({ message: "No blogs found" });
         }
@@ -18,7 +18,15 @@ blogRoute.get("/", async (req, res) => {
         res.status(500).json({ message: "Internal server error", error: error });
     }
 });
-
+blogRoute.get("/:id", async (req, res) => {
+    const { id } = req.params;
+    try {
+        const [result] = await db.query("SELECT * FROM blogs WHERE id = ?", [id]);
+        res.status(200).json({ message: "Blog fetched successfully", result: result });
+    } catch (error) {
+        res.status(500).json({ message: "Internal server error", error: error });
+    }
+});
 blogRoute.post("/", upload.single('Image'), async (req, res) => {
     const { title, description, shortdesc ,author} = req.body;
     if(!title || !description || !shortdesc){
