@@ -52,17 +52,36 @@ app.get("/test-db", async (req, res) => {
 
 
   if (cluster.isPrimary) {
-    // Fork worker processes based on the number of CPU cores
+    console.log(`Primary process ${process.pid} is running`);
+  
+    // Fork workers for each CPU core
     for (let i = 0; i < numCPUs; i++) {
       cluster.fork();
     }
   
+    // Handle worker exit and restart
     cluster.on('exit', (worker, code, signal) => {
-      console.log(`Worker ${worker.process.pid} died`);
+      console.error(`Worker ${worker.process.pid} died (code: ${code}, signal: ${signal})`);
+      console.log('Starting a new worker...');
+      cluster.fork();
     });
   } else {
+    // Worker process
     const PORT = process.env.PORT || 9000;
+  
+    // Start the server
     app.listen(PORT, () => {
       console.log(`Worker ${process.pid} started on port ${PORT}`);
     });
+  
+    // Graceful shutdown on worker termination
+    process.on('SIGTERM', () => {
+      console.log(`Worker ${process.pid} shutting down...`);
+      process.exit(0);
+    });
+  
+    // Simulate an unhandled exception to test worker restart (optional)
+    // setTimeout(() => {
+    //   throw new Error('Simulated crash');
+    // }, 10000);
   }
