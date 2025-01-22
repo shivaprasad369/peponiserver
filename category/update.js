@@ -16,6 +16,18 @@ categoryUpdateRoute.get('/get', async (req, res) => {
     const [result] = await db.query(`SELECT CategoryID, CategoryName FROM tbl_category WHERE ParentCategoryID = ?`, [id]);
     res.status(200).json({ message: "Category fetched successfully", result: result });
 });
+
+
+categoryUpdateRoute.get('/get/:id', async (req, res) => {
+    const { id } = req.params;
+    if(!id){
+        return res.status(400).json({ message: "Invalid or missing Category ID" });
+    }
+    const [result] = await db.query(`SELECT  * FROM tbl_category WHERE CategoryID = ?`, [id]);
+    res.status(200).json({ message: "Category fetched successfully", result: result });
+});
+
+
 categoryUpdateRoute.get("/:id", async (req, res) => {
     const { id } = req.params;
     if(!id){
