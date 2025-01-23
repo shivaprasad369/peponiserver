@@ -82,6 +82,72 @@ attributeRoute.get("/", async (req, res) => {
   }
 });
 
+attributeRoute.get("/:id", async (req, res) => {
+    const { id } = req.params;
+    try {
+        const connection = await db.getConnection();
+        const [attributes] = await connection.query(`SELECT 
+            a.attribute_name, v.value, a.CategoryID, a.id, v.id as value_id,
+            a.subcategory, a.subcategorytwo, c.CategoryName,
+            sc.CategoryName as subcategoryName,
+            sct.CategoryName as subcategorytwoName
+            FROM attributes a
+            JOIN attribute_values v ON a.id = v.attribute_id 
+            JOIN tbl_category c ON a.CategoryID = c.CategoryID
+            JOIN tbl_category sc ON a.subcategory = sc.CategoryID
+            LEFT JOIN tbl_category sct ON a.subcategorytwo = sct.CategoryID
+            WHERE a.id = ?`, [id]);
+
+        if (attributes.length === 0) {
+            return res.status(404).json({ message: "Attribute not found" });
+        }
+
+        const result = attributes.reduce((acc, curr) => {
+            let category = acc.find(item =>
+                item.CategoryID === curr.CategoryID &&
+                item.subcategory === curr.subcategory &&
+                item.CategoryName === curr.CategoryName
+            );
+
+            if (!category) {
+                category = {
+                    CategoryID: curr.CategoryID,
+                    subcategory: curr.subcategory, 
+                    subcategorytwo: curr.subcategorytwo,
+                    CategoryName: curr.CategoryName,
+                    subcategoryName: curr.subcategoryName,
+                    subcategorytwoName: curr.subcategorytwoName,
+                    attributes: []
+                };
+                acc.push(category);
+            }
+
+            let existingAttribute = category.attributes.find(attr => attr.attribute_id === curr.id);
+
+            if (!existingAttribute) {
+                existingAttribute = {
+                    attribute_id: curr.id,
+                    attributeName: curr.attribute_name,
+                    values: []
+                };
+                category.attributes.push(existingAttribute);
+            }
+
+            if (!existingAttribute.values.some(value => value.id === curr.value_id)) {
+                existingAttribute.values.push({ id: curr.value_id, value: curr.value });
+            }
+
+            return acc;
+        }, []);
+
+        res.status(200).json(result);
+    } catch (error) {
+        res.status(500).json({ message: "Internal server error", error: error.message });
+        console.error(error);
+    } finally {
+        connection.release();
+    }
+});
 
 attributeRoute.post("/", async (req, res) => {
     const { Attributes ,categoryId,subCategoryId } = req.body;
