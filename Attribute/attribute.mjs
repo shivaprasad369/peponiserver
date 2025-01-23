@@ -144,8 +144,6 @@ attributeRoute.get("/:id", async (req, res) => {
     } catch (error) {
         res.status(500).json({ message: "Internal server error", error: error.message });
         console.error(error);
-    } finally {
-        connection.release();
     }
 });
 
@@ -284,6 +282,15 @@ attributeRoute.put("/", async (req, res) => {
       }
     }
 console.log("PresentedValues", PresentedValues);
+    if (PresentedValues.length > 0) {
+      // Flatten the array of arrays and map to get IDs
+      const idsToDelete = PresentedValues.flat().map(value => value.id);
+      if (idsToDelete.length > 0) {
+        const [deleteResult] = await connection.query("DELETE FROM attribute_values WHERE id IN (?)", [idsToDelete]);
+        console.log("deleteResult", deleteResult);
+        // console.log(`Deleted values: ${JSON.stringify(idsToDelete)}`);
+      }
+    }
     await connection.commit();
     res.status(200).json({ message: "Attributes and values updated successfully" });
   } catch (error) {
