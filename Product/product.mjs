@@ -178,7 +178,7 @@ productRoute.put("/:id", upload.fields([{ name: 'newImage' }, { name: 'ProductIm
     } = req.body;
     const newImage = req.files.newImage ? req.files.newImage[0] : null; 
     let updatedImagePath = productImage; 
-
+console.log(newImage)
     if (!id || isNaN(id)) {
         return res.status(400).json({ message: "Product ID is not valid" });
     }
@@ -206,7 +206,11 @@ productRoute.put("/:id", upload.fields([{ name: 'newImage' }, { name: 'ProductIm
                 } else {
                     console.log("Old image not found, skipping deletion");
                 }
-                updatedImagePath = path.join("uploads", newImage.filename); // Correct path
+            }
+            updatedImagePath = path.join("uploads", newImage.filename);
+            const [result] = await db.query('UPDATE tbl_products SET Image = ? WHERE ProductID = ?', [updatedImagePath, id]);
+            if (result.affectedRows === 0) {
+                return res.status(400).json({ message: "Product image update failed" });
             }
         }
         const updateProductQuery = `
@@ -224,15 +228,14 @@ productRoute.put("/:id", upload.fields([{ name: 'newImage' }, { name: 'ProductIm
                 CategoryID = ?, 
                 SubCategoryIDone = ?, 
                 SubCategoryIDtwo = ?, 
-                Description = ?, 
-                Image = ? 
+                Description = ?
             WHERE ProductID = ?
         `;
 
         const [updateProductResult] = await db.query(updateProductQuery, [
             productName, metaTitle, metaDescription, metaKeyword, productPrice, discountPercentage,
             discountPrice, sellingPrice, cashPrice, categoryId, subCategoryId, subCategoryLv2Id,
-            productDescription, updatedImagePath, id
+            productDescription, id
         ]);
 
         if (updateProductResult.affectedRows === 0) {
