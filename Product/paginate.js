@@ -29,7 +29,9 @@ paginateRoute.get("/", async (req, res) => {
           p.SubCategoryIDone,
           p.SubCategoryIDtwo,
           p.Description,
-          p.Image
+          p.Image,
+          p.Status,
+          p.Stock
         FROM 
           tbl_products p
         LEFT JOIN 
@@ -96,5 +98,35 @@ paginateRoute.get("/", async (req, res) => {
       });
     }
 });
+paginateRoute.put('/:id', async (req, res) => {
+  const { id } = req.params;
+  const { Status } = req.body;
+
+  // Validate the ID and Status
+  if (!id || isNaN(id)) {
+    return res.status(400).send({ message: 'Invalid ID' });
+  }
   
+  // if (!Status) {
+  //   return res.status(400).send({ message: 'Status is required' });
+  // }
+
+  try {
+    // Update the product status in the database
+    const [result] = await db.query(
+      'UPDATE tbl_products SET Status = ? WHERE ProductID = ?',
+      [Status, id]
+    );
+
+    if (result.affectedRows > 0) {
+      return res.status(200).send({ message: 'Modified successfully' });
+    }
+
+    return res.status(404).send({ message: 'Product not found' });
+  } catch (error) {
+    console.error('Error updating product status:', error);
+    return res.status(500).send({ message: 'Internal server error' });
+  }
+});
+
 export default paginateRoute;

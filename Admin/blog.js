@@ -9,7 +9,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 blogRoute.get("/", async (req, res) => {
     try {
-        const [result] = await db.query("SELECT id,title,shortdesc,description,image,author,created_at FROM blogs");
+        const [result] = await db.query("SELECT id,title,shortdesc,description,image,author,created_at,Status FROM blogs");
         if(result.length === 0){
             return res.status(404).json({ message: "No blogs found" });
         }
@@ -119,4 +119,34 @@ blogRoute.put("/:id", upload.single('Image'), async (req, res) => {
         res.status(500).json({ message: "Internal server error", error: error });
     }
 });
+blogRoute.put('/status/:id', async (req, res) => {
+    const { id } = req.params;
+    const { Status } = req.body;
+
+    // Validate the 'id' parameter (should be a valid number)
+    if (!id || isNaN(id)) {
+        return res.status(400).send({ message: 'Invalid ID' }); // 400 Bad Request for invalid ID
+    }
+
+    // Validate the 'Status' field (optional: could be a specific set of values like 0, 1)
+    if (Status === undefined || ![0, 1].includes(Status)) {
+        return res.status(400).send({ message: 'Invalid Status value. Status must be 0 or 1.' });
+    }
+
+    try {
+        // Update the status in the database
+        const [result] = await db.query('UPDATE blogs SET Status = ? WHERE id = ?', [Status, id]);
+
+        // Check if any rows were updated
+        if (result.affectedRows > 0) {
+            return res.status(200).send({ message: 'Blog status updated successfully' });
+        } else {
+            return res.status(404).send({ message: 'Blog not found or no changes made' });
+        }
+    } catch (error) {
+        console.error('Error updating blog status:', error);
+        return res.status(500).send({ message: 'Internal server error' }); // 500 for server error
+    }
+});
+
 export default blogRoute;   

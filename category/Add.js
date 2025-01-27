@@ -43,7 +43,7 @@ try{
 });
 
 categoryRoute.get("/", async (req, res) => {
-    const [result] = await db.query("SELECT CategoryID,Image, CategoryName FROM tbl_category WHERE ParentCategoryID IS NULL");
+    const [result] = await db.query("SELECT CategoryID,Image, CategoryName,Status FROM tbl_category WHERE ParentCategoryID IS NULL");
     if(result.length === 0){
         return res.status(400).json({ message: "No categories found" });
     }   

@@ -187,6 +187,7 @@ if(!categoryId || !subCategoryId || isNaN(categoryId) || isNaN(subCategoryId)){
 attributeRoute.put("/", async (req, res) => {
   const { Attributes, categoryId, subCategoryId } = req.body;
 // console.log(Attributes[0].values[0].id);
+console.log(Attributes)
   if (!Attributes || !Array.isArray(Attributes)) {
     return res.status(400).json({ message: "Attributes must be provided as an array" });
   }

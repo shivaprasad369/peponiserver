@@ -83,7 +83,35 @@ categoryUpdateRoute.get("/categories/:id", async (req, res) => {
     }
 });
 
+categoryUpdateRoute.put('/status/:id', async (req, res) => {
+    const { id } = req.params;
+    const { Status } = req.body;
 
+    // Validate the input
+    if (!id || isNaN(id)) {
+        return res.status(400).send({ message: 'Invalid Id' }); // 400 for bad request
+    }
+
+    // Validate Status (if needed, for example 1 for active, 0 for inactive)
+    if (Status === undefined || ![0, 1].includes(Status)) {
+        return res.status(400).send({ message: 'Invalid Status value. Status must be 0 or 1.' });
+    }
+
+    try {
+        // Update the category status
+        const [result] = await db.query('UPDATE tbl_category SET Status = ? WHERE CategoryID = ?', [Status, id]);
+
+        // Check if any rows were affected
+        if (result.affectedRows > 0) {
+            return res.status(200).send({ message: 'Category status updated successfully' });
+        } else {
+            return res.status(404).send({ message: 'Category not found or no changes made' });
+        }
+    } catch (error) {
+        console.error('Error updating category status:', error);
+        return res.status(500).send({ message: 'Internal server error' }); // 500 for server error
+    }
+});
 
 categoryUpdateRoute.put("/:id", upload.single("NewImage"), async (req, res) => {
     const { id } = req.params;
