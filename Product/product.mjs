@@ -115,6 +115,7 @@ productRoute.get("/", async (req, res) => {
                    LEFT JOIN attributes a ON av.attribute_id = a.id
                    LEFT JOIN tbl_category c ON p.CategoryID = c.CategoryID
                    LEFT JOIN tbl_productimages st ON st.ProductID = p.ProductID
+                   ORDER BY p.ProductID DESC
            
                    `
                    ;

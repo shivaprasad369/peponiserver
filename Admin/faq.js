@@ -24,7 +24,7 @@ faqRoute.post('/', async (req, res) => {
   // Route to get all FAQs
  faqRoute.get('/', async (req, res) => {
     try {
-        const [result] = await db.query('SELECT id, question, answer FROM faqs');
+        const [result] = await db.query('SELECT id, question, answer FROM faqs ORDER BY id DESC');
         if(result.length === 0){
             return res.status(400).json({message:"FAQ failed"});
         }

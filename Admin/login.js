@@ -4,6 +4,14 @@ import { v4 as uuidv4 } from "uuid";
 import jwt from "jsonwebtoken";
 import db from "../db/db.js";
 import dotenv from "dotenv";
+import nodemailer from 'nodemailer'
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASSWORD,
+  },
+});
 dotenv.config();
 const adminroute = express.Router();
 adminroute.post("/register", async (req, res) => {
@@ -29,6 +37,14 @@ adminroute.post("/register", async (req, res) => {
         );
 
         res.status(201).json({ message: "Admin registered successfully", AdminID: result.insertId });
+        const mailOptions = {
+          from: process.env.EMAIL_USER,
+          to: process.env.EMAIL_USER,
+          subject: 'Registered successfully',
+          text: `Registartion was completed`,
+        };
+    
+        await transporter.sendMail(mailOptions);
     } catch (error) {
         res.status(500).json({ error: "Failed to register user" });
        
@@ -109,46 +125,75 @@ adminroute.put("/:id", async (req, res) => {
   }
   try {
     const [result] = await db.query('UPDATE admins SET username = ?, email = ?,phone = ? WHERE id = ?', [username, email, phone, id]);
+  
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: email,  // Assuming user has an email field
+      subject: 'Profile updated successfully',
+      text: 'Your Profile has been successfully updated.',
+    };
+
+    await transporter.sendMail(mailOptions);
+
     res.status(200).json({message:"Admin updated successfully",result:result});
   } catch (error) {
+    console.log(error)
     res.status(500).json({message:"Internal server error"});
   }
 });
+adminroute.put('/change-password/:id', async (req, res) => {
+  const { id } = req.params;
+  const { oldPassword, newPassword } = req.body;
 
-adminroute.put('/change-password/:id',async(req,res)=>{
- 
-  const { id, oldPassword, newPassword } = req.body;
-
-  if (!id || !oldPassword || !newPassword) {
-    return res.status(400).json({ message: "All fields are required",error:error });
+  // Validate input fields
+  if (!oldPassword || !newPassword) {
+    return res.status(400).json({ message: "Both old and new passwords are required." });
   }
-  try{
-    const [rows] = await db.execute(
-      'SELECT * FROM admins WHERE id=?',
-      [id]
-    );
+
+  try {
+    // Fetch the user from the database by ID
+    const [rows] = await db.execute('SELECT * FROM admins WHERE id = ?', [id]);
+    
     if (rows.length === 0) {
       return res.status(404).json({ error: 'User not found.' });
     }
+
     const user = rows[0];
+
+    // Compare the provided old password with the stored hashed password
     const isPasswordMatch = await bcrypt.compare(oldPassword, user.PasswordHash);
+    
     if (!isPasswordMatch) {
       return res.status(401).json({ error: "Invalid old password" });
     }
-    const salt = uuidv4();
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-    const result = await db.execute(
-      'UPDATE admins SET PasswordHash=?, Salt=? WHERE id=?',
-      [hashedPassword, salt, id]
-    );
+
+    // Generate a new salt and hash the new password
+    const salt = bcrypt.genSaltSync(10);  // bcrypt generates a secure salt
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+    // Update the password in the database
+    const result = await db.execute('UPDATE admins SET PasswordHash = ?, Salt = ? WHERE id = ?', [hashedPassword, salt, id]);
+
+    // If the password was successfully updated
     if (result[0].affectedRows > 0) {
+      // Send a success email notification (optional)
+      const mailOptions = {
+        from: process.env.EMAIL_USER,
+        to: user.email,  // Assuming user has an email field
+        subject: 'Password Changed Successfully',
+        text: 'Your password has been successfully changed.',
+      };
+
+      await transporter.sendMail(mailOptions);
+
       return res.status(200).json({ message: 'Password changed successfully.' });
     } else {
-      return res.status(404).json({ error: 'User not found.' });
+      return res.status(404).json({ error: 'Failed to update password. User not found.' });
     }
-  }catch{
+  } catch (error) {
+    console.error(error);
     return res.status(500).json({ error: "Failed to change password" });
   }
-})
+});
 export default adminroute;
 

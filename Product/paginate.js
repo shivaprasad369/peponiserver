@@ -41,10 +41,10 @@ paginateRoute.get("/", async (req, res) => {
       `;
 
       // Query to get total product count
-      const countQuery = `SELECT COUNT(DISTINCT ProductID) as total FROM tbl_products`;
-  
+      
       // Execute main product query
       const [products] = await db.query(query, [pageSize, offset]);
+      const countQuery = `SELECT COUNT(DISTINCT ProductID) as total FROM tbl_products`;
       const [countResult] = await db.query(countQuery);
 
       // For each product, fetch its images and attributes separately

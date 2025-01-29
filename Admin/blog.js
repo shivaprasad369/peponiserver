@@ -9,7 +9,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 blogRoute.get("/", async (req, res) => {
     try {
-        const [result] = await db.query("SELECT id,title,shortdesc,description,image,author,created_at,Status FROM blogs");
+        const [result] = await db.query("SELECT id,title,shortdesc,description,image,author,created_at,Status FROM blogs ORDER BY id DESC");
         if(result.length === 0){
             return res.status(404).json({ message: "No blogs found" });
         }
