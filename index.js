@@ -21,6 +21,8 @@ import forgetRoute from './Admin/forget.js';
 import userRoute from './User/user.js';
 import reviewRoute from './review/review.js';
 import dashRoute from './dashboard/dashbord.js';
+import bannerRouter from './Banner/banner.js';
+import homeRoute from './HomePage/home.js';
 const numCPUs = os.cpus().length; 
 const app = express()
 
@@ -48,6 +50,8 @@ app.use('/forgot-password',forgetRoute)
 app.use('/user',userRoute)
 app.use('/review',reviewRoute)
 app.use("/dash", dashRoute)
+app.use('/banner',bannerRouter)
+app.use('/home',homeRoute)
 
 app.get("/test-db", async (req, res) => {
     console.log("connected");

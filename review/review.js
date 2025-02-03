@@ -85,31 +85,38 @@ reviewRoute.post("/", async (req, res) => {
         try {
             const { searchTerm = '', page = 1, limit = 10 } = req.query;
             const offset = (page - 1) * limit;
-            if(searchTerm.trim() === '') {
-                const [rows] = await db.query(
-                    `SELECT r.*,r.review_id as id, u.FirstName as userName, p.ProductName,u.EmailID as emailAddress FROM tbl_productreviews r
+    
+            let query;
+            let queryParams;
+    
+            if (searchTerm.trim() === '') {
+                query = `
+                    SELECT r.*, r.review_id as id, u.FirstName as userName, p.ProductName, u.EmailID as emailAddress 
+                    FROM tbl_productreviews r
                     LEFT JOIN tbl_user u ON r.User_id = u.UserID
                     LEFT JOIN tbl_products p ON r.Product_id = p.ProductID
-                     LIMIT ? OFFSET ?`,
-                    [parseInt(limit), parseInt(offset)]
-                );
-                res.json({ page, limit, total: rows.length, result: rows });
+                    LIMIT ? OFFSET ?
+                `;
+                queryParams = [parseInt(limit), parseInt(offset)];
+            } else {
+                query = `
+                    SELECT r.*, r.review_id as id, u.FirstName as userName, p.ProductName, u.EmailID as emailAddress 
+                    FROM tbl_productreviews r
+                    LEFT JOIN tbl_user u ON r.User_id = u.UserID
+                    LEFT JOIN tbl_products p ON r.Product_id = p.ProductID
+                    WHERE r.review_text LIKE ? OR r.review_title LIKE ? OR p.ProductName LIKE ? OR u.FirstName LIKE ? OR u.EmailID LIKE ? 
+                    LIMIT ? OFFSET ?
+                `;
+                const searchTerms = `%${searchTerm}%`;
+                queryParams = [searchTerms, searchTerms, searchTerms, searchTerms, searchTerms, parseInt(limit), parseInt(offset)];
             }
-            // SQL query for filtering by search term (matches review_text or review_title)
-            const query = `
-                SELECT r.*,r.review_id as id, u.FirstName as userName, p.ProductName,u.EmailID as emailAddress FROM tbl_productreviews r
-                LEFT JOIN tbl_user u ON r.User_id = u.UserID
-                LEFT JOIN tbl_products p ON r.Product_id = p.ProductID
-                WHERE r.review_text LIKE ? OR r.review_title LIKE ? OR p.ProductName LIKE ? OR u.FirstName LIKE ? OR u.EmailID LIKE ? 
-                LIMIT ? OFFSET ?
-            `;
     
-            const searchTerms = `%${searchTerm}%`; // Wildcard search for partial matches
-            const [rows] = await db.query(query, [searchTerms, searchTerms,searchTerms,searchTerms,searchTerms, parseInt(limit), parseInt(offset)]);
-    
+            const [rows] = await db.query(query, queryParams);
             res.json({ page, limit, total: rows.length, result: rows });
+    
         } catch (error) {
-            res.status(500).json({ message: error.message });
+            console.error("Error fetching reviews:", error);
+            res.status(500).json({ message: "Internal Server Error" });
         }
     });
     
