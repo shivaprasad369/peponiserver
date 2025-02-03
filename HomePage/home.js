@@ -23,12 +23,13 @@ homeRoute.get('/collection', async (req, res) => {
         }
 
         const [data] = await db.query(`
-            SELECT p.ProductName, p.ProductID,p.ProductPrice,p.CashPrice, p.CategoryID,p.Image, p.SubCategoryIDone, 
+           SELECT p.ProductName,f.name, p.ProductID,p.ProductPrice,p.CashPrice, p.CategoryID,c.CategoryName, p.Image, p.SubCategoryIDone, 
                    av.value AS attributeValue, a.attribute_name AS AttributeName, 
                    a.id AS aid, av.id AS attributeValuesId
             FROM tbl_featureproducts f
             JOIN tbl_products p ON f.ProductID = p.ProductID
             JOIN tbl_productattribute pa ON pa.ProductID = f.ProductID
+            JOIN tbl_category c ON p.CategoryID=c.CategoryID
             JOIN attribute_values av ON av.id = pa.AttributeValueID
             JOIN attributes a ON av.attribute_id = a.id
             WHERE f.name = ?`, [collection]);
@@ -40,11 +41,12 @@ homeRoute.get('/collection', async (req, res) => {
                 acc[curr.ProductID] = {
                     ProductID: curr.ProductID,
                     ProductName: curr.ProductName,
+                    CategoryName:curr.CategoryName,
                     Image: curr.Image,
                     ProductPrice: curr.ProductPrice,
                     CashPrice: curr.CashPrice,
                   
-                    CategoryID: curr.CategoryID,
+                    CategoryID:Buffer.from(curr.CategoryID.toString()).toString('base64'),
                     SubCategoryIDone: curr.SubCategoryIDone,
                     attributeValues: []
                 };

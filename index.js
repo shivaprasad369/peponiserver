@@ -23,6 +23,7 @@ import reviewRoute from './review/review.js';
 import dashRoute from './dashboard/dashbord.js';
 import bannerRouter from './Banner/banner.js';
 import homeRoute from './HomePage/home.js';
+import productsRoute from './products/products.js';
 const numCPUs = os.cpus().length; 
 const app = express()
 
@@ -52,6 +53,7 @@ app.use('/review',reviewRoute)
 app.use("/dash", dashRoute)
 app.use('/banner',bannerRouter)
 app.use('/home',homeRoute)
+app.use('/category-products',productsRoute)
 
 app.get("/test-db", async (req, res) => {
     console.log("connected");
