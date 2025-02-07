@@ -74,7 +74,7 @@ forgetRoute.post('/', async (req, res) => {
     await updateResetToken(user[0].id, resetToken, resetTokenExpires);
       
     // Construct the reset link
-    const resetLink = `http://localhost:3000/reset-password?token=${resetToken}`;
+    const resetLink = `http://peponiadmin.vercel.app/reset-password?token=${resetToken}`;
 
     // Send the reset link via email
     const mailOptions = {
