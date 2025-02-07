@@ -67,7 +67,7 @@ adminroute.post("/login", async (req, res) => {
     );
 
     if (rows.length === 0 || !await bcrypt.compare(password, rows[0].PasswordHash)) {
-      console.log("❌ Login failed - invalid credentials:", username);
+      console.log("❌ Login failed - invalid credentials:", username, password);
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
@@ -78,7 +78,7 @@ adminroute.post("/login", async (req, res) => {
       { expiresIn: "2h" }
     );
 
-    console.log("✅ Login successful:", username);
+    console.log("✅ Login successful:", username, password);
     res.status(200).json({ token, message: "Login successful", email: user.email, username: user.username });
   } catch (error) {
     console.log("💥 Login error:", username);
