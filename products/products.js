@@ -5,25 +5,38 @@ const productsRoute = express.Router();
 productsRoute.get('/collection', async (req, res) => {
     try {
         const { categoryName } = req.query;
+
         if (!categoryName) {
-            return res.status(400).json({ error: "Category name required is required" });
+            return res.status(400).json({ error: "Category name is required" });
         }
-        let name=decodeURIComponent(categoryName)
-       
+
+        let name = decodeURIComponent(categoryName);
+
+        // Fetch products and attributes
         const [data] = await db.query(`
-            SELECT c.CategoryName,p.ProductID,p.CategoryID,p.SubCategoryIDone,p.ProductName,p.ProductPrice,
-            p.ProductPrice,p.CashPrice,p.Image, a.id as aid , av.id as attributeValuesId,
-            av.value as attributeValue,a.attribute_name as AttributeName from tbl_category c
+            SELECT 
+                c.CategoryName, p.ProductID, p.CategoryID, p.SubCategoryIDone, p.ProductName,
+                p.ProductPrice, p.CashPrice, p.Image, a.id as aid, av.id as attributeValuesId,
+                av.value as attributeValue, a.attribute_name as AttributeName 
+            FROM tbl_category c
             JOIN tbl_products p ON p.CategoryID = c.CategoryID
+            JOIN tbl_productattribute pa ON pa.ProductID = p.ProductID
+            JOIN attribute_values av ON av.id = pa.AttributeValueID
+            JOIN attributes a ON a.id = av.attribute_id
+            WHERE c.CategoryName = ?`, [name]);
 
-            JOIN tbl_productattribute pa ON pa.ProductID=p.ProductID
-            JOIN attribute_values av on av.id=pa.AttributeValueID
-            JOIN attributes a ON a.id =av.attribute_id
-            WHERE c.CategoryName= ?`, [name]);
+        const [attribute] = await db.query(`
+            SELECT 
+                c.CategoryName, c.CategoryID, a.attribute_name, c1.CategoryID as SubCategoryIDone,
+                av.id as Avid, av.value AS AttributeValue, a.id as Aid 
+            FROM tbl_category c
+            LEFT JOIN tbl_category c1 ON c.CategoryID = c1.ParentCategoryID
+            LEFT JOIN attributes a ON a.CategoryID = c.CategoryID
+            LEFT JOIN attribute_values av ON a.id = av.attribute_id
+            WHERE c.CategoryName = ?`, [name]);
 
-        // Transform data into the correct format
+        // Group products
         const filterData = data.reduce((acc, curr) => {
-            // Check if the product already exists in the accumulator
             if (!acc[curr.ProductID]) {
                 acc[curr.ProductID] = {
                     ProductID: curr.ProductID,
@@ -31,14 +44,12 @@ productsRoute.get('/collection', async (req, res) => {
                     Image: curr.Image,
                     ProductPrice: curr.ProductPrice,
                     CashPrice: curr.CashPrice,
-                  
                     CategoryID: Buffer.from(curr.CategoryID.toString()).toString('base64'),
                     SubCategoryIDone: curr.SubCategoryIDone,
                     attributeValues: []
                 };
             }
 
-            // Push attribute details into attributeValues array
             acc[curr.ProductID].attributeValues.push({
                 AttributeName: curr.AttributeName,
                 attributeValue: curr.attributeValue,
@@ -49,36 +60,78 @@ productsRoute.get('/collection', async (req, res) => {
             return acc;
         }, {});
 
-        // Convert object to an array and send response
-        res.status(200).json(Object.values(filterData));
+        // Group attributes by SubCategoryIDone
+        const filterDatas = attribute.reduce((acc, curr) => {
+            // Ensure the SubCategoryIDone key exists
+            if (!acc[curr.SubCategoryIDone]) {
+                acc[curr.SubCategoryIDone] = {
+                    SubCategoryIDone: curr.SubCategoryIDone,
+                    
+                    Attributes: {} // Store attributes as a dictionary
+                };
+            }
+        
+            // Ensure the attribute name exists
+            if (!acc[curr.SubCategoryIDone].Attributes[curr.attribute_name]) {
+                acc[curr.SubCategoryIDone].Attributes[curr.attribute_name] = [];
+            }
+        
+            // Add the attribute value if it's not already present
+            if (!acc[curr.SubCategoryIDone].Attributes[curr.attribute_name].includes(curr.AttributeValue)) {
+                acc[curr.SubCategoryIDone].Attributes[curr.attribute_name].push(curr.AttributeValue);
+            }
+        
+            return acc;
+        }, {});
+        
 
+        res.status(200).json({ products: Object.values(filterData), attribute: filterDatas });
     } catch (error) {
         console.error("Error fetching collection:", error);
         res.status(500).json({ error: error.message });
     }
 });
-productsRoute.get('/all-collection', async (req, res) => {
+
+productsRoute.get('/all-collection', async (req, res) => {  
     try {
         const { categoryName } = req.query;
         if (!categoryName) {
-            return res.status(400).json({ error: "Category name required is required" });
+            return res.status(400).json({ error: "Category name is required" });
         }
-        let name=decodeURIComponent(categoryName)
-       
-        const [data] = await db.query(`
-            SELECT c.CategoryName,p.ProductID,p.CategoryID,p.SubCategoryIDone,p.ProductName,p.ProductPrice,
-            p.ProductPrice,p.CashPrice,p.Image, a.id as aid , av.id as attributeValuesId,
-            av.value as attributeValue,a.attribute_name as AttributeName from tbl_category c
+        let name = decodeURIComponent(categoryName);
+        
+        // Fetch products with min & max CashPrice per product
+        const [products] = await db.query(`
+            SELECT 
+                c.CategoryName, 
+                p.ProductID, 
+                p.CategoryID, 
+                p.SubCategoryIDone, 
+                p.ProductName, 
+                p.ProductPrice, 
+                p.Image, 
+                p.CashPrice,  -- ✅ Keep actual CashPrice for reference
+                a.id AS aid,  
+                av.id AS attributeValuesId, 
+                av.value AS attributeValue, 
+                a.attribute_name AS AttributeName 
+            FROM tbl_category c
             JOIN tbl_products p ON p.CategoryID = c.CategoryID
+            JOIN tbl_productattribute pa ON pa.ProductID = p.ProductID
+            JOIN attribute_values av ON av.id = pa.AttributeValueID
+            JOIN attributes a ON a.id = av.attribute_id
+        `);
 
-            JOIN tbl_productattribute pa ON pa.ProductID=p.ProductID
-            JOIN attribute_values av on av.id=pa.AttributeValueID
-            JOIN attributes a ON a.id =av.attribute_id`
-            );
+        // Fetch overall min and max CashPrice from all products
+        const [overallStats] = await db.query(`
+            SELECT 
+                MIN(CashPrice) AS OverallMinCashPrice, 
+                MAX(CashPrice) AS OverallMaxCashPrice
+            FROM tbl_products
+        `);
 
-        // Transform data into the correct format
-        const filterData = data.reduce((acc, curr) => {
-            // Check if the product already exists in the accumulator
+        // Transform product data into correct format
+        const filterData = products.reduce((acc, curr) => {
             if (!acc[curr.ProductID]) {
                 acc[curr.ProductID] = {
                     ProductID: curr.ProductID,
@@ -86,7 +139,6 @@ productsRoute.get('/all-collection', async (req, res) => {
                     Image: curr.Image,
                     ProductPrice: curr.ProductPrice,
                     CashPrice: curr.CashPrice,
-                  
                     CategoryID: Buffer.from(curr.CategoryID.toString()).toString('base64'),
                     SubCategoryIDone: curr.SubCategoryIDone,
                     attributeValues: []
@@ -103,13 +155,154 @@ productsRoute.get('/all-collection', async (req, res) => {
 
             return acc;
         }, {});
-
-        // Convert object to an array and send response
-        res.status(200).json(Object.values(filterData));
+      
+        // Convert object to an array and add overall min/max CashPrice to response
+        res.status(200).json({
+            products: Object.values(filterData),
+            overallMinCashPrice: overallStats[0].OverallMinCashPrice,
+            overallMaxCashPrice: overallStats[0].OverallMaxCashPrice
+        });
 
     } catch (error) {
         console.error("Error fetching collection:", error);
         res.status(500).json({ error: error.message });
     }
 });
+
+
+
+productsRoute.post('/search', async (req, res) => {
+    try {
+        const { categories, subcategories, attributes, priceRange, sortField, sortOrder } = req.body;  
+
+        console.log("Categories received:", categories);
+        console.log("Subcategories received:", subcategories);
+        console.log("Attributes received:", attributes);
+        console.log("Price Range received:", priceRange);
+        console.log("Sorting received:", sortField, sortOrder);
+
+        // Ensure categories is an array
+        const categoryFilter = Array.isArray(categories) ? categories : [];
+
+        // Extract subcategory IDs from the subcategories object
+        const subCategoryFilter = subcategories 
+            ? Object.values(subcategories).flat().map(Number) 
+            : [];
+
+        // Define allowed sorting fields
+        const allowedSortFields = ["ProductName", "ProductPrice", "CashPrice"];
+        const sortColumn = allowedSortFields.includes(sortField) ? sortField : "ProductID";
+        const order = sortOrder === "asc" ? "ASC" : "DESC";
+
+        // Construct base SQL query
+        let query = `
+            SELECT DISTINCT p.ProductID, p.ProductName, p.Image, p.ProductPrice, 
+                            p.CashPrice, p.CategoryID, p.SubCategoryIDone
+        `;
+
+        let conditions = [];
+        let params = [];
+
+        // Filter by categories
+        if (categoryFilter.length > 0) {
+            conditions.push(`p.CategoryID IN (${categoryFilter.map(() => '?').join(',')})`);
+            params.push(...categoryFilter);
+        }
+
+        // Filter by subcategories
+        if (subCategoryFilter.length > 0) {
+            conditions.push(`p.SubCategoryIDone IN (${subCategoryFilter.map(() => '?').join(',')})`);
+            params.push(...subCategoryFilter);
+        }
+
+        // Handle price range
+        if (priceRange?.length === 2) {
+            conditions.push(`(p.CashPrice BETWEEN ? AND ?)`);
+            params.push(priceRange[0], priceRange[1]);
+        }
+
+        // Handle attributes filtering
+        let joinClauses = "";
+        if (attributes && typeof attributes === 'object') {
+            Object.keys(attributes).forEach((attrName, index) => {
+                const values = attributes[attrName];
+                if (Array.isArray(values) && values.length > 0) {
+                    joinClauses += `
+                       LEFT JOIN tbl_productattribute pa${index} ON pa${index}.ProductID = p.ProductID
+                       LEFT JOIN attribute_values av${index} ON av${index}.id = pa${index}.AttributeValueID
+                       LEFT JOIN attributes a${index} ON a${index}.id = av${index}.attribute_id
+                    `;
+                    query += `, a${index}.attribute_name AS AttributeName, av${index}.value AS AttributeValue`;
+                    conditions.push(`(a${index}.attribute_name = ? AND av${index}.value IN (${values.map(() => '?').join(',')}))`);
+                    params.push(attrName, ...values);
+                }
+            });
+        }
+
+        // Construct full query
+        query += ` FROM tbl_products p JOIN tbl_category c ON p.CategoryID = c.CategoryID ${joinClauses} `;
+
+        if (conditions.length > 0) {
+            query += ` WHERE ` + conditions.join(" AND ");
+        }
+
+        // Add sorting
+        query += ` ORDER BY p.${sortColumn} ${order}`;
+
+        console.log("Final Query:", query);
+        console.log("Query Parameters:", params);
+
+        const [data] = await db.query(query, params);
+
+        // Transform data into structured format
+        const filterData = data.reduce((acc, product) => {
+            let existingProduct = acc.find(p => p.ProductID === product.ProductID);
+
+            if (!existingProduct) {
+                existingProduct = {
+                    ProductID: product.ProductID,
+                    ProductName: product.ProductName,
+                    Image: product.Image,
+                    ProductPrice: product.ProductPrice,
+                    CashPrice: product.CashPrice,
+                    CategoryID: Buffer.from(product.CategoryID.toString()).toString('base64'),
+                    SubCategoryIDone: product.SubCategoryIDone,
+                    attributes: []
+                };
+                acc.push(existingProduct);
+            }
+
+            // Add attribute details if available
+            if (product.AttributeName && product.AttributeValue) {
+                existingProduct.attributes.push({
+                    AttributeName: product.AttributeName,
+                    AttributeValue: product.AttributeValue
+                });
+            }
+
+            return acc;
+        }, []);
+
+        res.status(200).json(filterData);
+
+    } catch (error) {
+        console.error("Error fetching products by category, subcategory & attributes:", error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+
+productsRoute.get('/price',async(req,res)=>{
+    try{
+        const [data]=await db.query(`SELECT MAX(cashPrice) AS maxPrice, MIN(cashPrice) AS minPrice FROM tbl_products `)
+        res.status(200).json(data)
+    }catch(error){
+        console.error("Error fetching products by price range:",error)
+        res.status(500).json({error:error.message})
+    }
+})
+
+
+
+
 export default productsRoute

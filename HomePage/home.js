@@ -110,4 +110,118 @@ homeRoute.post("/newletter", async (req, res) => {
     }
   });
 
+  homeRoute.get('/attribute-category', async (req, res) => {
+    try {
+        // Optimized SQL Query
+        const query = `
+            SELECT 
+                c.CategoryID, c.CategoryName,
+                c1.CategoryID AS SubcategoryID, c1.CategoryName AS SubcategoryName,
+                a.attribute_name, a.CategoryID AS Acid, a.subcategory AS Ascid,
+                av.value, av.id AS AttributeValueID
+            FROM tbl_category c
+            LEFT JOIN tbl_category c1 ON c1.ParentCategoryID = c.CategoryID
+            LEFT JOIN attributes a ON a.subcategory = c1.CategoryID
+            LEFT JOIN attribute_values av ON a.id = av.attribute_id
+            WHERE c.ParentCategoryID IS NULL;
+        `;
+
+        const [result] = await db.query(query);
+
+        if (!result.length) {
+            return res.status(200).json({ 
+                message: "No attribute categories found", 
+                result: [], 
+                all: {} 
+            });
+        }
+
+        // Using Map for efficient structuring
+        const filterData = new Map();
+
+        result.forEach(item => {
+            // Get or create category
+            if (!filterData.has(item.CategoryID)) {
+                filterData.set(item.CategoryID, {
+                    CategoryID: item.CategoryID,
+                    CategoryName: item.CategoryName,
+                    Subcategories: new Map()
+                });
+            }
+            const category = filterData.get(item.CategoryID);
+
+            // Get or create subcategory
+            if (!category.Subcategories.has(item.SubcategoryID)) {
+                category.Subcategories.set(item.SubcategoryID, {
+                    SubcategoryID: item.SubcategoryID,
+                    SubcategoryName: item.SubcategoryName,
+                    Attributes: new Map()
+                });
+            }
+            const subcategory = category.Subcategories.get(item.SubcategoryID);
+
+            // Get or create attribute
+            if (!subcategory.Attributes.has(item.attribute_name)) {
+                subcategory.Attributes.set(item.attribute_name, {
+                    AttributeName: item.attribute_name,
+                    Acid: item.Acid,
+                    Ascid: item.Ascid,
+                    AttributeValues: new Set()
+                });
+            }
+            const attribute = subcategory.Attributes.get(item.attribute_name);
+
+            // Add attribute value
+            if (item.value) {
+                attribute.AttributeValues.add({
+                    Value: item.value.trim(),
+                    AttributeValueID: item.AttributeValueID
+                });
+            }
+        });
+
+        // Convert Maps to arrays
+        const formattedData = Array.from(filterData.values()).map(category => ({
+            ...category,
+            Subcategories: Array.from(category.Subcategories.values()).map(subcategory => ({
+                ...subcategory,
+                Attributes: Array.from(subcategory.Attributes.values()).map(attribute => ({
+                    ...attribute,
+                    AttributeValues: Array.from(attribute.AttributeValues)
+                }))
+            }))
+        }));
+
+        // Extracting grouped attributes
+        const groupedAttributes = {};
+        formattedData.forEach(category => {
+            category.Subcategories.forEach(subcategory => {
+                subcategory.Attributes.forEach(attribute => {
+                    if (!groupedAttributes[attribute.AttributeName]) {
+                        groupedAttributes[attribute.AttributeName] = [];
+                    }
+                    attribute.AttributeValues.forEach(value => {
+                        if (!groupedAttributes[attribute.AttributeName].includes(value.Value)) {
+                            groupedAttributes[attribute.AttributeName].push(value.Value);
+                        }
+                    });
+                });
+            });
+        });
+
+        res.status(200).json({ 
+            message: "Attribute categories fetched successfully", 
+            result: formattedData, 
+            all: groupedAttributes 
+        });
+
+    } catch (error) {
+        res.status(500).json({ 
+            message: "Internal server error", 
+            error: error.message 
+        });
+    }
+});
+
+
 export default homeRoute;
