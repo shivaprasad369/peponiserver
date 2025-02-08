@@ -50,45 +50,42 @@ adminroute.post("/register", async (req, res) => {
        
     }
 });
+
 adminroute.post("/login", async (req, res) => {
   const { username, password } = req.body;
+  console.log("🔐 Login attempt:", username);
+
   if (!username || !password) {
+    console.log("❌ Login failed - missing credentials:", username);
     return res.status(400).json({ error: "Email and password are required" });
   }
-  console.log(username,password);
+
   try {
     const [rows] = await db.execute(
       `SELECT * FROM admins  WHERE username = ?`,
       [username]
     );
-    if (rows.length === 0) {
-      return res
-        .status(401)
-        .json({ message: "Invalid credentials or email not verified" });
-    }
-    const user = rows[0];
-    const isPasswordMatch = await bcrypt.compare(
-      password,
-      user.PasswordHash
-    );
-    if (!isPasswordMatch) {
+
+    if (rows.length === 0 || !await bcrypt.compare(password, rows[0].PasswordHash)) {
+      console.log("❌ Login failed - invalid credentials:", username, password);
       return res.status(401).json({ message: "Invalid credentials" });
     }
+
+    const user = rows[0];
     const token = jwt.sign(
       { AdminID: user.id, UserName: user.username },
       process.env.JWT_SECRET,
-      {
-        expiresIn: "2h",
-      }
+      { expiresIn: "2h" }
     );
-    res
-      .status(200)
-      .json({ token, message: "Login successful", email: user.email,username:user.username });
+
+    console.log("✅ Login successful:", username, password);
+    res.status(200).json({ token, message: "Login successful", email: user.email, username: user.username });
   } catch (error) {
-    console.error("Error logging in:", error);
+    console.log("💥 Login error:", username);
     res.status(500).json({ error: "Failed to log in" });
   }
 });
+
 adminroute.get("/verify", (req, res, next) => {
   const token = req.headers["authorization"]?.split(" ")[1];
 
