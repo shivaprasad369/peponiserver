@@ -64,7 +64,7 @@ productImageRoute.get("/:ProductID", async (req, res) => {
             p.ProductName, p.ProductID, p.MetaTitle, p.metaDescription, p.MetaKeyWords, 
             p.ProductPrice, p.DiscountPercentage, p.DiscountPrice, p.SellingPrice, 
             p.CashPrice, p.CategoryID, p.SubCategoryIDone, p.SubCategoryIDtwo, 
-            p.Description, p.Image, 
+            p.Description, p.Image, p.Stock,
             c.CategoryName, 
             st.ProductImages, st.ProductImagesID, 
             a.attribute_name, pa.AttributeValueID, av.value 
@@ -88,6 +88,7 @@ productImageRoute.get("/:ProductID", async (req, res) => {
             ProductID: result[0].ProductID,
             MetaTitle: result[0].MetaTitle,
             metaDescription: result[0].metaDescription,
+            Stock:result[0].Stock,
             MetaKeyWords: result[0].MetaKeyWords,
             ProductPrice: result[0].ProductPrice,
             DiscountPercentage: result[0].DiscountPercentage,

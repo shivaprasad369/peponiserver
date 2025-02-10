@@ -20,6 +20,7 @@ productRoute.post('/', upload.fields([{ name: 'productImage' }, { name: 'Product
             discountPercentage,
             discountPrice,
             sellingPrice,
+            Stock :Stock  ,
             cashPrice,
             categoryId,
             subCategoryId,
@@ -32,12 +33,12 @@ productRoute.post('/', upload.fields([{ name: 'productImage' }, { name: 'Product
         const productImages = req.files.ProductImages || [];
         const insertProductQuery = `
             INSERT INTO tbl_products(ProductName, MetaTitle, metaDescription, MetaKeyWords, ProductPrice, DiscountPercentage, 
-                                     DiscountPrice, SellingPrice, CashPrice, CategoryID, SubCategoryIDone, SubCategoryIDtwo, Description, Image) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+                                     DiscountPrice, SellingPrice, CashPrice, CategoryID, SubCategoryIDone, SubCategoryIDtwo, Description, Image,Stock) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?)`;
 
        const [result] = await db.query(insertProductQuery, [
             productName, metaTitle, metaDescription, metaKeyword, productPrice, discountPercentage, 
-            discountPrice, sellingPrice, cashPrice, categoryId, subCategoryId, subCategoryLv2Id, productDescription, productImagePath
+            discountPrice, sellingPrice, cashPrice, categoryId, subCategoryId, subCategoryLv2Id, productDescription, productImagePath,Stock
         ]);
             if (result.affectedRows === 0) {
                 return res.status(500).json({ message: 'Error inserting product', error: err });
@@ -175,7 +176,7 @@ productRoute.put("/:id", upload.fields([{ name: 'newImage' }, { name: 'ProductIm
     const { 
         productName, metaTitle, metaDescription, metaKeyword, productPrice, discountPercentage, 
         discountPrice, sellingPrice, cashPrice, categoryId, subCategoryId, subCategoryLv2Id, 
-        productDescription, attributeValue, productImage
+        productDescription, attributeValue, productImage,stock
     } = req.body;
     const newImage = req.files.newImage ? req.files.newImage[0] : null; 
     let updatedImagePath = productImage; 
@@ -227,6 +228,7 @@ console.log(newImage)
                 SellingPrice = ?, 
                 CashPrice = ?, 
                 CategoryID = ?, 
+                stock=?,
                 SubCategoryIDone = ?, 
                 SubCategoryIDtwo = ?, 
                 Description = ?
@@ -235,7 +237,7 @@ console.log(newImage)
 
         const [updateProductResult] = await db.query(updateProductQuery, [
             productName, metaTitle, metaDescription, metaKeyword, productPrice, discountPercentage,
-            discountPrice, sellingPrice, cashPrice, categoryId, subCategoryId, subCategoryLv2Id,
+            discountPrice, sellingPrice, cashPrice, categoryId,stock, subCategoryId, subCategoryLv2Id,
             productDescription, id
         ]);
 
