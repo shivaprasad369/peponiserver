@@ -18,30 +18,44 @@ userRoute.post('/register', async (req, res) => {
       });
     }
 
-        // Insert user data into database
-        const [result] = await db.execute(
-            'INSERT INTO tbl_user (FullName, EmailID, PhoneNo, Status, isVerified) VALUES (?, ?, ?, ?, ?)',
-            [fullName, emailId, phoneNo, 1, verificationStatus]
-        );
+    // Check if email already exists
+    const [existingUser] = await db.execute(
+      'SELECT EmailID FROM tbl_user WHERE EmailID = ?',
+      [emailId]
+    );
 
-        if (result.affectedRows === 1) {
-            console.log(`User created successfully with email: ${emailId}`);
-            res.status(201).json({
-                success: true,
-                message: 'User registered successfully',
-                userId: result.insertId
-            });
-        } else {
-            throw new Error('Failed to insert user');
-        }
-
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: 'Error registering user',
-            error: error.message
-        });
+    // If email exists, return success without doing anything
+    if (existingUser.length > 0) {
+      return res.status(201).json({
+        success: true,
+        message: 'User registered successfully'
+      });
     }
+
+    // Insert user data into database if email doesn't exist
+    const [result] = await db.execute(
+      'INSERT INTO tbl_user (FullName, EmailID, PhoneNo, Status, isVerified) VALUES (?, ?, ?, ?, ?)',
+      [fullName, emailId, phoneNo, 1, verificationStatus]
+    );
+
+    if (result.affectedRows === 1) {
+      console.log(`User created successfully with email: ${emailId}`);
+      res.status(201).json({
+        success: true,
+        message: 'User registered successfully',
+        userId: result.insertId
+      });
+    } else {
+      throw new Error('Failed to insert user');
+    }
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error registering user',
+      error: error.message
+    });
+  }
 });
 
 // Verification endpoint
