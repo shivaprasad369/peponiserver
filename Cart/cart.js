@@ -1,5 +1,5 @@
 
-import express from "express";
+import express, { query } from "express";
 import db from "../db/db.js";
 
 const cartRoute=express.Router()
@@ -21,15 +21,19 @@ cartRoute.get("/generate-id", (req, res) => {
     if (user && isNaN(Number(user))) {
       return res.status(400).json({ error: "Invalid User ID" });
     }
-    try {
+    try {   
       let query = `
         SELECT 
           p.SellingPrice,
           p.Image,
           tc.*,
-          p.ProductName
+          p.Stock,
+          p.ProductName,
+          p.ProductPrice,
+          c.CategoryName
         FROM tbl_products p
         JOIN tbl_tempcart tc ON p.ProductID = tc.ProductID
+        JOIN tbl_category c ON c.CategoryID = p.CategoryID
       `;
   
       let queryParams = [];
@@ -43,7 +47,7 @@ cartRoute.get("/generate-id", (req, res) => {
       }
   
       const [rows] = await db.query(query, queryParams);
-  
+  console.log(rows)
       if (rows.length === 0) {
         return res.status(404).json({ message: "No cart items found" });
       }
@@ -71,7 +75,8 @@ cartRoute.get("/generate-id", (req, res) => {
             p.SellingPrice,
             p.Image,
             tc.*,
-            p.ProductName
+            p.ProductName,
+            p.ProductPrice 
           FROM tbl_products p
           JOIN tbl_tempcart tc ON p.ProductID = tc.ProductID
           WHERE tc.UserID = ?
@@ -87,6 +92,7 @@ cartRoute.get("/generate-id", (req, res) => {
         row.ProductID, 
         row.Price, 
         row.Qty, 
+        row.ProductPrice,
         row.Price * row.Qty,
         0,
         `SUB${Date.now()}${row.ProductID}`,
@@ -113,61 +119,94 @@ cartRoute.get("/generate-id", (req, res) => {
     }
   });
   cartRoute.post("/store-cart", async (req, res) => {
-      const { cartItems } = req.body;
-      const {id}=req.query;
-    
-      if (!cartItems || !cartItems.CartNumber || !cartItems.ProductAttributeID) {
-        return res.status(400).json({ error: "CartNumber and ProductAttributeID are required." });
+    const { cartItems } = req.body;
+    const { id } = req.query;
+  
+    if (!cartItems || !cartItems.CartNumber || !cartItems.ProductAttributeID || !cartItems.ProductID) {
+      return res.status(400).json({ error: "CartNumber, ProductAttributeID, and ProductID are required." });
+    }
+  
+    try {
+      // Decode ProductID from base64
+      const decodedProductID = Buffer.from(cartItems.ProductID, "base64").toString("utf-8");
+  
+      // Check stock availability
+      const [stockResult] = await db.execute(
+        "SELECT Stock FROM tbl_products WHERE ProductID = ?",
+        [decodedProductID]
+      );
+  
+      if (stockResult.length === 0) {
+        return res.status(404).json({ error: "Product not found." });
       }
-    
-      try {
-        // Check if the product already exists in the cart
-        const [existingItem] = await db.execute(
-          `SELECT Qty FROM tbl_tempcart 
-           WHERE CartNumber = ? AND ProductAttributeID = ? AND UserID=?`,
-          [cartItems.CartNumber, cartItems.ProductAttributeID,id]
-        );
-    
-        if (existingItem.length > 0) {
-          // Product exists, update the quantity and item total
-          const updatedQty = existingItem[0].Qty + cartItems.Qty;
-          const itemTotal = updatedQty * cartItems.Price;
-    
-          await db.execute(
-            `UPDATE tbl_tempcart 
-             SET Qty = ?, ItemTotal = ? 
-             WHERE CartNumber = ? AND ProductAttributeID = ?`,
-            [updatedQty, itemTotal, cartItems.CartNumber, cartItems.ProductAttributeID]
-          );
-    
-          return res.status(200).json({ message: "Cart item quantity updated successfully" });
-        } else {
-          // Product doesn't exist, insert it
-          const values = [
-            cartItems.UserID || null,
-            cartItems.CartNumber || null,
-            cartItems.ProductID || null,
-            cartItems.ProductAttributeID || null,
-            cartItems.Price || 0,
-            cartItems.Qty || 1,
-            cartItems.Price * cartItems.Qty || 0,
-            cartItems.TranxRef || `TRX-${Date.now()}`,
-            cartItems.CartDate || new Date(),
-            cartItems.Voucherprice || 0,
-          ];
-    
-          const insertQuery = `INSERT INTO tbl_tempcart (UserID,CartNumber, ProductID, ProductAttributeID, Price, Qty, ItemTotal, TranxRef, CartDate, Voucherprice) 
-                               VALUES (?,?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-          await db.execute(insertQuery, values);
-    
-          return res.status(200).json({ message: "Cart item stored successfully" });
+  
+      const stockAvailable = stockResult[0].Stock;
+  
+      // Check if the product already exists in the cart
+      const [existingItems] = await db.execute(
+        `SELECT Qty FROM tbl_tempcart 
+         WHERE CartNumber = ? AND ProductAttributeID = ? AND UserID = ?`,
+        [cartItems.CartNumber, cartItems.ProductAttributeID, id]
+      );
+  
+      if (existingItems.length > 0) {
+        const existingQty = existingItems[0].Qty;
+        const newQty = existingQty + cartItems.Qty;
+  
+        // Check if stock is sufficient
+        if (newQty > stockAvailable) {
+          return res.status(400).json({
+            message: "Insufficient stock",
+            stock: stockAvailable,
+          });
         }
-      } catch (error) {
-        console.error("Error storing cart item:", error);
-        return res.status(500).json({ error: "Failed to store cart item" });
+  
+        // Update existing cart item quantity
+        const itemTotal = newQty * cartItems.Price;
+        await db.execute(
+          `UPDATE tbl_tempcart 
+           SET Qty = ?, ItemTotal = ? 
+           WHERE CartNumber = ? AND ProductAttributeID = ? AND UserID = ?`,
+          [newQty, itemTotal, cartItems.CartNumber, cartItems.ProductAttributeID, id]
+        );
+  
+        return res.status(200).json({ message: "Cart item quantity updated successfully" });
+      } else {
+        // If item doesn't exist, insert a new cart entry
+        if (cartItems.Qty > stockAvailable) {
+          return res.status(400).json({
+            message: "Insufficient stock",
+            stock: stockAvailable,
+          });
+        }
+  
+        const values = [
+          id || null,
+          cartItems.CartNumber || null,
+          decodedProductID,
+          cartItems.ProductAttributeID || null,
+          cartItems.Price || 0,
+          cartItems.Qty || 1,
+          cartItems.Price * cartItems.Qty || 0,
+          cartItems.TranxRef || `TRX-${Date.now()}`,
+          new Date(),
+          cartItems.Voucherprice || 0,
+        ];
+  
+        const insertQuery = `
+          INSERT INTO tbl_tempcart (UserID, CartNumber, ProductID, ProductAttributeID, Price, Qty, ItemTotal, TranxRef, CartDate, Voucherprice) 
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+  
+        await db.execute(insertQuery, values);
+  
+        return res.status(200).json({ message: "Cart item stored successfully" });
       }
-    });
-   
+    } catch (error) {
+      console.error("Error storing cart item:", error);
+      return res.status(500).json({ error: "Failed to store cart item" });
+    }
+  });
+      
   cartRoute.put("/update-quantity", async (req, res) => {
     const { id, userId, number, user } = req.body;
   

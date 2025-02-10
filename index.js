@@ -25,6 +25,8 @@ import bannerRouter from './Banner/banner.js';
 import homeRoute from './HomePage/home.js';
 import productsRoute from './products/products.js';
 import detailRoute from './products/Details.js';
+import cartRoute from './Cart/cart.js';
+import blogsRoute from './HomePage/blog.js';
 const numCPUs = os.cpus().length; 
 const app = express()
 
@@ -56,6 +58,8 @@ app.use('/banner',bannerRouter)
 app.use('/home',homeRoute)
 app.use('/category-products',productsRoute)
 app.use('/product-details',detailRoute)
+app.use('/cart',cartRoute)
+app.use('/frontend-blog',blogsRoute)
 
 app.get("/test-db", async (req, res) => {
     console.log("connected");

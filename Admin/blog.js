@@ -4,9 +4,25 @@ import upload from '../uploads.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import slugify from "slugify";
 const blogRoute = express.Router();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+async function generateUniqueSlug(title) {
+    let slug = slugify(title, { lower: true, strict: true });
+  
+    let [existing] = await db.query("SELECT COUNT(*) AS count FROM blogs WHERE slug = ?", [slug]);
+  
+    let count = existing[0].count;
+    while (count > 0) {
+      slug = `${slug}-${count}`;
+      [existing] = await db.query("SELECT COUNT(*) AS count FROM blogs WHERE slug = ?", [slug]);
+      count = existing[0].count;
+    }
+  
+    return slug;
+  }
 blogRoute.get("/", async (req, res) => {
     try {
         const [result] = await db.query("SELECT id,title,shortdesc,description,image,author,created_at,Status FROM blogs ORDER BY id DESC");
@@ -29,14 +45,17 @@ blogRoute.get("/:id", async (req, res) => {
 });
 blogRoute.post("/", upload.single('Image'), async (req, res) => {
     const { title, description, shortdesc ,author} = req.body;
+
     if(!title || !description || !shortdesc){
         return res.status(400).json({ message: "Title, description and shortdesc are required" });
     }
+    const slug = await generateUniqueSlug(title);
+
     try {
         const image = req.file ? path.join("uploads", req.file.filename) : null;
        
-        const [result] = await db.query("INSERT INTO blogs (title, description, shortdesc, image,author) VALUES (?, ?, ?, ?, ?)", 
-            [title, description, shortdesc, image,author]);
+        const [result] = await db.query("INSERT INTO blogs (title, description, shortdesc, image,author,slug) VALUES (?, ?, ?, ?, ?,?)", 
+            [title, description, shortdesc, image,author,slug]);
         if(result.affectedRows === 0){
             return res.status(400).json({ message: "Blog not added" });
         }
@@ -79,6 +98,7 @@ blogRoute.put("/:id", upload.single('Image'), async (req, res) => {
     const { id } = req.params;
     const { title, description, shortdesc, author } = req.body;
 
+ const slug = await generateUniqueSlug(title);
     if (!title || !description || !shortdesc) {
         return res.status(400).json({ message: "Title, description and shortdesc are required" });
     }
@@ -105,8 +125,8 @@ blogRoute.put("/:id", upload.single('Image'), async (req, res) => {
         }
 
         const [result] = await db.query(
-            "UPDATE blogs SET title = ?, description = ?, shortdesc = ?, image = ?, author = ? WHERE id = ?", 
-            [title, description, shortdesc, newImage, author, id]
+            "UPDATE blogs SET title = ?, description = ?, shortdesc = ?, image = ?, author = ?,slug=? WHERE id = ?", 
+            [title, description, shortdesc, newImage, author,slug, id]
         );
 
         if (result.affectedRows === 0) {

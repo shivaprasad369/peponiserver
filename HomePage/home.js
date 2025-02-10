@@ -32,7 +32,7 @@ homeRoute.get('/collection', async (req, res) => {
             JOIN tbl_category c ON p.CategoryID=c.CategoryID
             JOIN attribute_values av ON av.id = pa.AttributeValueID
             JOIN attributes a ON av.attribute_id = a.id
-            WHERE f.name = ?`, [collection]);
+            WHERE f.name = ? AND p.Status=1`, [collection]);
 
         // Transform data into the correct format
         const filterData = data.reduce((acc, curr) => {

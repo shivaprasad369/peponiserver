@@ -14,8 +14,8 @@ import mysql from 'mysql2/promise';
 const db = mysql.createPool({
     host : 'localhost',
     user: 'root',         // Your MySQL username
-    password: 'Admin@123', // Your MySQL password
-    // password: '', // Your M ySQL password
+    // password: 'Admin@123', // Your MySQL password
+    password: '', // Your M ySQL password
     database: 'peponi' ,
     waitForConnections: true,
     connectionLimit: 10, // Adjust based on your workload

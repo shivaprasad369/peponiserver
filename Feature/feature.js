@@ -45,7 +45,7 @@ featureRoute.post('/', async (req, res) => {
             });
         }
         const existingFeatureGroup = await db.query(
-            `SELECT * FROM tbl_featureproducts WHERE Name = ? AND ProductID = ?`,
+            `SELECT * FROM tbl_featureproducts WHERE Name = ? AND ProductID = ? AND Status=1`,
             [FeatureName, ProductID]
         );
         console.log(existingFeatureGroup[0]);
@@ -87,7 +87,7 @@ featureRoute.delete('/:id', async (req, res) => {
 
 featureRoute.get('/', async (req, res) => {
     try {
-        const features = await db.query(`SELECT ProductID, ProductName,Image FROM tbl_products`);
+        const features = await db.query(`SELECT ProductID, ProductName,Image FROM tbl_products WHERE Status=1`);
         res.json({data:features});
     } catch (error) {
         res.status(500).json({ error: res.message });
