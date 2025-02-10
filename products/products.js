@@ -26,13 +26,13 @@ productsRoute.get('/collection', async (req, res) => {
             WHERE c.CategoryName = ?`, [name]);
 
         const [attribute] = await db.query(`
-            SELECT 
-                c.CategoryName, c.CategoryID, a.attribute_name, c1.CategoryID as SubCategoryIDone,
+          SELECT 
+                c.CategoryName, c.CategoryID, a.attribute_name,c1.CategoryName as subcategory, c1.CategoryID as SubCategoryIDone,
                 av.id as Avid, av.value AS AttributeValue, a.id as Aid 
             FROM tbl_category c
-            LEFT JOIN tbl_category c1 ON c.CategoryID = c1.ParentCategoryID
-            LEFT JOIN attributes a ON a.CategoryID = c.CategoryID
-            LEFT JOIN attribute_values av ON a.id = av.attribute_id
+          JOIN tbl_category c1 ON c.CategoryID = c1.ParentCategoryID
+          JOIN attributes a ON a.subcategory = c1.CategoryID
+          JOIN attribute_values av ON a.id = av.attribute_id
             WHERE c.CategoryName = ?`, [name]);
 
         // Group products
@@ -62,34 +62,40 @@ productsRoute.get('/collection', async (req, res) => {
 
         // Group attributes by SubCategoryIDone
         const filterDatas = attribute.reduce((acc, curr) => {
-            // Ensure the SubCategoryIDone key exists
+           
+            // Ensure the SubCategoryIDone key exists in the accumulator
             if (!acc[curr.SubCategoryIDone]) {
                 acc[curr.SubCategoryIDone] = {
                     SubCategoryIDone: curr.SubCategoryIDone,
-                    
-                    Attributes: {} // Store attributes as a dictionary
+                    CategoryID:curr.CategoryID,
+                    subName:curr.subcategory,   
+                    Attributes: {}  // Initialize empty object for attributes
                 };
             }
         
-            // Ensure the attribute name exists
+            // Ensure the attribute_name key exists under the Attributes of SubCategoryIDone
             if (!acc[curr.SubCategoryIDone].Attributes[curr.attribute_name]) {
-                acc[curr.SubCategoryIDone].Attributes[curr.attribute_name] = [];
+                acc[curr.SubCategoryIDone].Attributes[curr.attribute_name] = [];  // Initialize empty array for the attribute values
             }
         
-            // Add the attribute value if it's not already present
-            if (!acc[curr.SubCategoryIDone].Attributes[curr.attribute_name].includes(curr.AttributeValue)) {
-                acc[curr.SubCategoryIDone].Attributes[curr.attribute_name].push(curr.AttributeValue);
+            // Add the attribute value if it's not already in the list for this attribute_name in the current SubCategoryIDone
+            const existingValues = acc[curr.SubCategoryIDone].Attributes[curr.attribute_name];
+            if (!existingValues.includes(curr.AttributeValue)) {
+                existingValues.push(curr.AttributeValue);  // Add unique value
             }
         
-            return acc;
+            return acc;  // Return the accumulator
         }, {});
-        
-
-        res.status(200).json({ products: Object.values(filterData), attribute: filterDatas });
+      const categoryId=
+      Object.keys(filterDatas).map(SubCategoryIDone => {
+        return filterDatas[SubCategoryIDone].CategoryID;
+      });
+        console.log(categoryId)
+        res.status(200).json({ products: Object.values(filterData), attribute: filterDatas,CategoryID:categoryId});
     } catch (error) {
         console.error("Error fetching collection:", error);
         res.status(500).json({ error: error.message });
-    }
+    }       
 });
 
 productsRoute.get('/all-collection', async (req, res) => {  
@@ -260,7 +266,7 @@ productsRoute.post('/search', async (req, res) => {
 
             if (!existingProduct) {
                 existingProduct = {
-                    ProductID: product.ProductID,
+                    ProductID:Buffer.from( product.ProductID.toString()).toString('base64'),
                     ProductName: product.ProductName,
                     Image: product.Image,
                     ProductPrice: product.ProductPrice,

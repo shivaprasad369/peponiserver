@@ -39,7 +39,7 @@ homeRoute.get('/collection', async (req, res) => {
             // Check if the product already exists in the accumulator
             if (!acc[curr.ProductID]) {
                 acc[curr.ProductID] = {
-                    ProductID: curr.ProductID,
+                    ProductID:Buffer.from(curr.ProductID.toString()).toString('base64'),
                     ProductName: curr.ProductName,
                     CategoryName:curr.CategoryName,
                     Image: curr.Image,
@@ -62,7 +62,7 @@ homeRoute.get('/collection', async (req, res) => {
 
             return acc;
         }, {});
-
+        console.log(filterData)
         // Convert object to an array and send response
         res.status(200).json(Object.values(filterData));
 
