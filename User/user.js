@@ -1,8 +1,10 @@
 import express from 'express';
-import mysql from 'mysql2/promise'; // Use promise-based MySQL client
-import bcrypt from 'bcryptjs';
+
 import db from '../db/db.js';
 const userRoute = express.Router();
+
+
+
 // Registration endpoint
 userRoute.post('/register', async (req, res) => {
   try {
