@@ -28,6 +28,7 @@ import detailRoute from './products/Details.js';
 import cartRoute from './Cart/cart.js';
 import blogsRoute from './HomePage/blog.js';
 import checkout from './Checkout/checkout.js';
+import newCartRoute from './Cart/New.js';
 const numCPUs = os.cpus().length; 
 const app = express()
 
@@ -59,7 +60,7 @@ app.use('/banner',bannerRouter)
 app.use('/home',homeRoute)
 app.use('/category-products',productsRoute)
 app.use('/product-details',detailRoute)
-app.use('/cart',cartRoute)
+app.use('/cart',newCartRoute)
 app.use('/frontend-blog',blogsRoute)
 app.use('/checkout',checkout)
 
