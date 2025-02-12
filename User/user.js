@@ -36,7 +36,7 @@ userRoute.post('/register', async (req, res) => {
 
     // Insert user data into database if email doesn't exist
     const [result] = await db.execute(
-      'INSERT INTO tbl_user (FullName, EmailID, PhoneNo, Status, isVerified) VALUES (?, ?, ?, ?, ?)',
+      'INSERT INTO tbl_user (full_name, email, phone_num, status, is_verified) VALUES (?, ?, ?, ?, ?)',
       [fullName, emailId, phoneNo, 1, verificationStatus]
     );
 
