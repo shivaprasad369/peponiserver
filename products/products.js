@@ -90,7 +90,7 @@ productsRoute.get('/collection', async (req, res) => {
       Object.keys(filterDatas).map(SubCategoryIDone => {
         return filterDatas[SubCategoryIDone].CategoryID;
       });
-        console.log(categoryId)
+        // console.log(categoryId)
         res.status(200).json({ products: Object.values(filterData), attribute: filterDatas,CategoryID:categoryId});
     } catch (error) {
         console.error("Error fetching collection:", error);

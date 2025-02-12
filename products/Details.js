@@ -106,7 +106,7 @@ detailRoute.get('/related/:id',async(req,res)=>{
             WHERE p.SubCategoryIDone = ?`
         
         const [data]= await db.query(query, [Number(id)])
-        console.log(data)
+        // console.log(data)
         const filterData = data.reduce((acc, curr) => {
             // Check if the product already exists in the accumulator
             if (!acc[curr.ProductID]) {

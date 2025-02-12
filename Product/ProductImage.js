@@ -12,7 +12,7 @@ productImageRoute.delete('/:ProductImageID', async (req, res) => {
     try {
         const { ProductImageID } = req.params;
         const { ProductImage } = req.body; // Ensure req.body contains ProductImages as a string
-        console.log(req.body);
+        // console.log(req.body);
         console.log("ProductImages received:", ProductImage);
 
         if (!ProductImageID || isNaN(ProductImageID)) {

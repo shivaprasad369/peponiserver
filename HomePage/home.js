@@ -62,7 +62,7 @@ homeRoute.get('/collection', async (req, res) => {
 
             return acc;
         }, {});
-        console.log(filterData)
+        // console.log(filterData)
         // Convert object to an array and send response
         res.status(200).json(Object.values(filterData));
 
