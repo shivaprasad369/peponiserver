@@ -77,7 +77,7 @@ userRoute.put('/verify', async (req, res) => {
 
     // Update verification status
     const [result] = await db.execute(
-      'UPDATE tbl_user SET isVerified = ? WHERE EmailID = ?',
+      'UPDATE tbl_user SET is_verified = ? WHERE email = ?',
       [verificationStatus, emailId]
     );
 
