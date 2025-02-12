@@ -20,9 +20,9 @@ userRoute.post('/register', async (req, res) => {
       });
     }
 
-    // Check if email already exists
+    // Check if email already exists using updated column name 'email'
     const [existingUser] = await db.execute(
-      'SELECT EmailID FROM tbl_user WHERE EmailID = ?',
+      'SELECT email FROM tbl_user WHERE email = ?',
       [emailId]
     );
 
@@ -36,7 +36,7 @@ userRoute.post('/register', async (req, res) => {
 
     // Insert user data into database if email doesn't exist
     const [result] = await db.execute(
-      'INSERT INTO tbl_user (FullName, EmailID, PhoneNo, Status, isVerified) VALUES (?, ?, ?, ?, ?)',
+      'INSERT INTO tbl_user (full_name, email, phone_num, status, is_verified) VALUES (?, ?, ?, ?, ?)',
       [fullName, emailId, phoneNo, 1, verificationStatus]
     );
 
@@ -77,7 +77,7 @@ userRoute.put('/verify', async (req, res) => {
 
     // Update verification status
     const [result] = await db.execute(
-      'UPDATE tbl_user SET isVerified = ? WHERE EmailID = ?',
+      'UPDATE tbl_user SET is_verified = ? WHERE email = ?',
       [verificationStatus, emailId]
     );
 
