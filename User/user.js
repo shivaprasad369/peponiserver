@@ -20,9 +20,9 @@ userRoute.post('/register', async (req, res) => {
       });
     }
 
-    // Check if email already exists
+    // Check if email already exists using updated column name 'email'
     const [existingUser] = await db.execute(
-      'SELECT EmailID FROM tbl_user WHERE EmailID = ?',
+      'SELECT email FROM tbl_user WHERE email = ?',
       [emailId]
     );
 
