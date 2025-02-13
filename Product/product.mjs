@@ -4,11 +4,25 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import upload from "../uploads.js";
+import slugify from "slugify";
 const productRoute = express.Router();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-
+async function generateUniqueSlug(title) {
+    let slug = slugify(title, { lower: true, strict: true });
+  
+    let [existing] = await db.query("SELECT COUNT(*) AS count FROM blogs WHERE slug = ?", [slug]);
+  
+    let count = existing[0].count;
+    while (count > 0) {
+      slug = `${slug}-${count}`;
+      [existing] = await db.query("SELECT COUNT(*) AS count FROM blogs WHERE slug = ?", [slug]);
+      count = existing[0].count;
+    }
+  
+    return slug;
+  }
 productRoute.post('/', upload.fields([{ name: 'productImage' }, { name: 'ProductImages' }]), async (req, res) => {
     try {
         const {
@@ -33,12 +47,12 @@ productRoute.post('/', upload.fields([{ name: 'productImage' }, { name: 'Product
         const productImages = req.files.ProductImages || [];
         const insertProductQuery = `
             INSERT INTO tbl_products(ProductName, MetaTitle, metaDescription, MetaKeyWords, ProductPrice, DiscountPercentage, 
-                                     DiscountPrice, SellingPrice, CashPrice, CategoryID, SubCategoryIDone, SubCategoryIDtwo, Description, Image,Stock) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?)`;
-
+                                     DiscountPrice, SellingPrice, CashPrice, CategoryID, SubCategoryIDone, SubCategoryIDtwo, Description, Image,Stock,ProductUrl) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?,?)`;
+            const slug = await generateUniqueSlug(productName);
        const [result] = await db.query(insertProductQuery, [
             productName, metaTitle, metaDescription, metaKeyword, productPrice, discountPercentage, 
-            discountPrice, sellingPrice, cashPrice, categoryId, subCategoryId, subCategoryLv2Id, productDescription, productImagePath,Stock
+            discountPrice, sellingPrice, cashPrice, categoryId, subCategoryId, subCategoryLv2Id, productDescription, productImagePath,Stock,slug
         ]);
             if (result.affectedRows === 0) {
                 return res.status(500).json({ message: 'Error inserting product', error: err });
@@ -178,6 +192,7 @@ productRoute.put("/:id", upload.fields([{ name: 'newImage' }, { name: 'ProductIm
         discountPrice, sellingPrice, cashPrice, categoryId, subCategoryId, subCategoryLv2Id, 
         productDescription, attributeValue, productImage,stock
     } = req.body;
+    const slug = await generateUniqueSlug(productName);
     const newImage = req.files.newImage ? req.files.newImage[0] : null; 
     let updatedImagePath = productImage; 
 console.log(newImage)
@@ -231,14 +246,15 @@ console.log(newImage)
                 stock=?,
                 SubCategoryIDone = ?, 
                 SubCategoryIDtwo = ?, 
-                Description = ?
+                Description = ?,
+                ProductUrl=?
             WHERE ProductID = ?
         `;
 
         const [updateProductResult] = await db.query(updateProductQuery, [
             productName, metaTitle, metaDescription, metaKeyword, productPrice, discountPercentage,
             discountPrice, sellingPrice, cashPrice, categoryId,stock, subCategoryId, subCategoryLv2Id,
-            productDescription, id
+            productDescription,slug, id
         ]);
 
         if (updateProductResult.affectedRows === 0) {

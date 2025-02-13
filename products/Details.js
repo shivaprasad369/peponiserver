@@ -9,7 +9,7 @@ detailRoute.get("/:id", async (req, res) => {
         if (!productId) {
             return res.status(400).json({ error: "Product ID is required" });
         }
-
+// console.log(req.params.id)
         const query = `
             SELECT 
                 p.*, 
@@ -27,9 +27,9 @@ detailRoute.get("/:id", async (req, res) => {
             LEFT JOIN attribute_values av ON pa.AttributeValueID = av.id
             LEFT JOIN attributes a ON a.id = av.attribute_id
             LEFT JOIN tbl_productreviews pr ON pr.product_id = p.ProductID
-            WHERE p.ProductID = ?`;
+            WHERE p.ProductUrl = ?`;
 
-        const [rows] = await db.query(query, [productId]);
+        const [rows] = await db.query(query, [req.params.id]);
         // console.log(rows)
         if (rows.length === 0) {
             return res.status(404).json({ error: "Product not found" });
@@ -94,10 +94,11 @@ detailRoute.get('/related/:id',async(req,res)=>{
         if(!id || isNaN(id)){
             return res.status(400).json({error: 'Product ID is required'})
         }
+        console.log(id)
         const query=`
         SELECT p.ProductName, p.ProductID,p.ProductPrice,p.CashPrice, p.CategoryID,c.CategoryName, p.Image, p.SubCategoryIDone, 
                    av.value AS attributeValue, a.attribute_name AS AttributeName, 
-                   a.id AS aid, av.id AS attributeValuesId
+                   a.id AS aid, av.id AS attributeValuesId,p.ProductUrl
             FROM tbl_products p
             JOIN tbl_productattribute pa ON pa.ProductID = p.ProductID
             JOIN tbl_category c ON p.CategoryID=c.CategoryID
@@ -113,6 +114,7 @@ detailRoute.get('/related/:id',async(req,res)=>{
                 acc[curr.ProductID] = {
                     ProductID:Buffer.from(curr.ProductID.toString()).toString('base64') ,
                     ProductName: curr.ProductName,
+                    url:curr.ProductUrl,
                     CategoryName:curr.CategoryName,
                     Image: curr.Image,
                     ProductPrice: curr.ProductPrice,
@@ -134,7 +136,7 @@ detailRoute.get('/related/:id',async(req,res)=>{
 
             return acc;
         }, {});
-
+        // console.log(filterData)
         // Convert object to an array and send response
         res.status(200).json(Object.values(filterData));
 

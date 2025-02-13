@@ -7,121 +7,118 @@ dotenv.config();
 const checkout = express.Router();
 // POST endpoint to insert data into tbl_finalmaster
 checkout.post("/", async (req, res) => {
-    const { UserEmail, OrderNumber, BillingFirstname, BillingLastname, BillingAddress, 
-      BillingAddressLine2 , BillingEmailID, BillingPhone, BillingCity, BillingPostalcode, 
-      BillingCountry, ShippingFirstname, ShippingLastname, ShippingAddress, ShippingAddressLine2, 
-      ShippingEmailID, ShippingPhone, ShippingCity, ShippingPostalcode, ShippingCountry, 
-      GrandItemTotal, ShippingPrice, GrandTotal } = req.body
-  
-    try {
-    
-      // First, check if the record already exists
-      const checkQuery = `
-        SELECT * FROM tbl_finalmaster 
-        WHERE UserEmail = ?  
+  const {
+    addressId,
+    UserEmail,
+    OrderNumber,
+    BillingFirstname,
+    BillingLastname,
+    BillingAddress,
+    BillingAddressLine2,
+    BillingEmailID,
+    BillingPhone,
+    BillingCity,
+    BillingPostalcode,
+    BillingCountry,
+    ShippingFirstname,
+    ShippingLastname,
+    ShippingAddress,
+    ShippingAddressLine2,
+    ShippingEmailID,
+    ShippingPhone,
+    ShippingCity,
+    ShippingPostalcode,
+    ShippingCountry,
+    GrandItemTotal,
+    ShippingPrice,
+    GrandTotal,
+  } = req.body;
+
+  try {
+    // Check if the user already has an entry in `tbl_finalmaster`
+    const checkQuery = `SELECT * FROM tbl_finalmaster WHERE UserEmail = ?`;
+    const [existingRecord] = await db.execute(checkQuery, [UserEmail]);
+
+    let finalAddressId = addressId;
+
+    if (addressId && addressId !== 0) {
+      // If `addressId` is provided, update `tbl_address`
+      const updateAddressQuery = `
+        UPDATE tbl_address SET
+          BillingFirstname = ?, BillingLastname = ?, BillingAddress = ?, BillingAddressLine2 = ?,
+          BillingEmailID = ?, BillingPhone = ?, BillingCity = ?, BillingPostalcode = ?, BillingCountry = ?,
+          ShippingFirstname = ?, ShippingLastname = ?, ShippingAddress = ?, ShippingAddressLine2 = ?,
+          ShippingEmailID = ?, ShippingPhone = ?, ShippingCity = ?, ShippingPostalcode = ?, ShippingCountry = ?
+        WHERE AddressId = ?
       `;
-      const [existingRecord] = await db.execute(checkQuery, [UserEmail]);
-  
-      if (existingRecord.length > 0) {
-        // If the record exists, perform an update
-        const updateQuery = `
-          UPDATE tbl_finalmaster SET 
-            BillingFirstname = ?, 
-            BillingLastname = ?, 
-            BillingAddress = ?, 
-            BillingAddressLine2 = ?, 
-            BillingEmailID = ?, 
-            BillingPhone = ?, 
-            BillingCity = ?, 
-            BillingPostalcode = ?, 
-            BillingCountry = ?, 
-            ShippingFirstname = ?, 
-            ShippingLastname = ?, 
-            ShippingAddress = ?, 
-            ShippingAddressLine2 = ?, 
-            ShippingEmailID = ?, 
-            ShippingPhone = ?, 
-            ShippingCity = ?, 
-            ShippingPostalcode = ?, 
-            ShippingCountry = ?, 
-            GrandItemTotal = ?, 
-            ShippingPrice = ?, 
-            GrandTotal = ? 
-          WHERE UserEmail = ? 
-        `;
-        
-        const updateValues = [
-          BillingFirstname || null, BillingLastname || null, BillingAddress || null, BillingAddressLine2|| null, BillingEmailID|| null, BillingPhone|| null, 
-          BillingCity || null, BillingPostalcode || null, BillingCountry || null, ShippingFirstname || null, ShippingLastname || null, 
-          ShippingAddress || null, ShippingAddressLine2 || null, ShippingEmailID || null, ShippingPhone || null, ShippingCity || null, 
-          ShippingPostalcode || null, ShippingCountry || null, GrandItemTotal || null, ShippingPrice || null, GrandTotal || null, 
-          UserEmail || null
-        ];
-  
-        await db.execute(updateQuery, updateValues);
-        res.status(200).json({
-          message: "Order updated successfully",
-        });
-      } else {
-        // If the record doesn't exist, perform an insert
-        const insertQuery = `
-          INSERT INTO tbl_finalmaster (
-            UserEmail, OrderNumber, BillingFirstname, BillingLastname, BillingAddress, 
-            BillingAddressLine2, BillingEmailID, BillingPhone, BillingCity, BillingPostalcode, 
-            BillingCountry, ShippingFirstname, ShippingLastname, ShippingAddress, ShippingAddressLine2, 
-            ShippingEmailID, ShippingPhone, ShippingCity, ShippingPostalcode, ShippingCountry, 
-            GrandItemTotal, ShippingPrice, GrandTotal
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?)
-        `;
-  
-        const insertValues = [
-            UserEmail || null, 
-            OrderNumber || null, 
-            BillingFirstname || null, 
-            BillingLastname || null, 
-            BillingAddress || null, 
-            BillingAddressLine2 || null, 
-            BillingEmailID || null, 
-            BillingPhone || null, 
-            BillingCity || null, 
-            BillingPostalcode || null, 
-            BillingCountry || null, 
-            ShippingFirstname || null, 
-            ShippingLastname || null, 
-            ShippingAddress || null, 
-            ShippingAddressLine2 || null, 
-            ShippingEmailID || null, 
-            ShippingPhone || null, 
-            ShippingCity || null, 
-            ShippingPostalcode || null, 
-            ShippingCountry || null, 
-            GrandItemTotal || 0, 
-            ShippingPrice || 0, 
-            GrandTotal || 0
-          ];
-          
-        const [result] = await db.execute(insertQuery, insertValues);
-        console.log("Record inserted with ID:", result.insertId);
-  
-        res.status(201).json({
-          message: "Data inserted successfully",
-          insertedId: result.insertId,
-        });
-      }
-    } catch (err) {
-      console.error("Error processing request:", err);
-      res.status(500).json({ error: "Failed to process the request" });
+      const updateAddressValues = [
+        BillingFirstname, BillingLastname, BillingAddress, BillingAddressLine2, BillingEmailID, BillingPhone,
+        BillingCity, BillingPostalcode, BillingCountry, ShippingFirstname, ShippingLastname, ShippingAddress,
+        ShippingAddressLine2, ShippingEmailID, ShippingPhone, ShippingCity, ShippingPostalcode, ShippingCountry,
+        addressId
+      ];
+      await db.execute(updateAddressQuery, updateAddressValues);
+    } else {
+      // If no `addressId`, insert a new address
+      const insertAddressQuery = `
+        INSERT INTO tbl_address (
+          UserEmail, BillingFirstname, BillingLastname, BillingAddress, BillingAddressLine2, BillingEmailID, 
+          BillingPhone, BillingCity, BillingPostalcode, BillingCountry, ShippingFirstname, ShippingLastname, 
+          ShippingAddress, ShippingAddressLine2, ShippingEmailID, ShippingPhone, ShippingCity, ShippingPostalcode, ShippingCountry
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `;
+      const insertAddressValues = [
+        UserEmail, BillingFirstname, BillingLastname, BillingAddress, BillingAddressLine2, BillingEmailID, 
+        BillingPhone, BillingCity, BillingPostalcode, BillingCountry, ShippingFirstname, ShippingLastname, 
+        ShippingAddress, ShippingAddressLine2, ShippingEmailID, ShippingPhone, ShippingCity, ShippingPostalcode, ShippingCountry
+      ];
+      const [result] = await db.execute(insertAddressQuery, insertAddressValues);
+      finalAddressId = result.insertId; // Store the new address ID
     }
-  });
+
+    if (existingRecord.length > 0) {
+      // If record exists, update `tbl_finalmaster` with the new addressId
+      const updateQuery = `
+        UPDATE tbl_finalmaster SET
+          addressID = ?, GrandItemTotal = ?, ShippingPrice = ?, GrandTotal = ?
+        WHERE UserEmail = ?
+      `;
+      const updateValues = [
+        finalAddressId, GrandItemTotal || 0, ShippingPrice || 0, GrandTotal || 0, UserEmail
+      ];
+      await db.execute(updateQuery, updateValues);
+      return res.status(200).json({ message: "Order updated successfully", addressId: finalAddressId });
+    } else {
+      // If no record, insert into `tbl_finalmaster` with the new addressId
+      const insertQuery = `
+        INSERT INTO tbl_finalmaster (
+          UserEmail, addressID, OrderNumber, GrandItemTotal, ShippingPrice, GrandTotal
+        ) VALUES (?, ?, ?, ?, ?, ?)
+      `;
+      const insertValues = [
+        UserEmail, finalAddressId, OrderNumber, GrandItemTotal || 0, ShippingPrice || 0, GrandTotal || 0
+      ];
+      await db.execute(insertQuery, insertValues);
+      return res.status(201).json({ message: "New order and address added successfully", addressId: finalAddressId });
+    }
+  } catch (err) {
+    console.error("Error processing request:", err);
+    res.status(500).json({ error: "Failed to process the request" });
+  }
+});
+
+
   
 checkout.get("/", async (req, res) => {
     const {orderId,user} = req.query; // Get the order ID from the URL parameters
   // console.log(req.query)
     const query = `
       SELECT 
-        *
-      FROM tbl_finalmaster
-      WHERE UserEmail = ?
+    f.*, a.*
+FROM tbl_finalmaster f
+JOIN tbl_address a ON a.AddressID = f.addressId
+WHERE f.UserEmail = ?
+
     `;
   
     try {
@@ -137,7 +134,7 @@ checkout.get("/", async (req, res) => {
       res.status(200).json({
         message: "Order fetched successfully",
         data: rows[0], // Return the first (and only) result
-      });
+      }); 
     } catch (err) { 
       console.error("Error fetching data: ", err);
       res.status(500).json({ error: "Failed to fetch data from the database" });
@@ -216,6 +213,71 @@ checkout.get("/", async (req, res) => {
     }
   });
   
+  checkout.get('/address',async(req,res)=>{
+    const {email} = req.query;
+    if(!email){
+      return res.status(400).json({error: 'Missing user parameter'});
+    }
+    const query = `
+      SELECT * FROM tbl_address WHERE UserEmail =?
+    `;
+    try{
+      const [rows] = await db.execute(query,[email]);
+      if(rows.length === 0){
+        return res.status(404).json({message: 'Data found'});
+      }
+      res.status(200).json({message: 'Address fetched successfully', data: rows})
+    }catch(err){
+      console.error('Error fetching data: ',err);
+      res.status(500).json({error: 'Failed to fetch data from the database'});
+    }
+  })
   
-  
+  checkout.get('/address/:id',async(req,res)=>{
+    const {id} = req.params;
+    if(!id){
+      return res.status(400).json({error: 'Missing user parameter'});
+    }
+    const query = `
+      SELECT * FROM tbl_address WHERE AddressID =?
+    `;
+    try{
+      const [rows] = await db.execute(query,[id]);
+      if(rows.length === 0){
+        return res.status(404).json({message: 'Data found'});
+      }
+      res.status(200).json({message: 'Address fetched successfully', data: rows[0]})
+    }catch(err){
+      console.error('Error fetching data: ',err);
+      res.status(500).json({error: 'Failed to fetch data from the database'});
+    }
+  })
+  checkout.delete('/address/:id', async (req, res) => {
+    const { id } = req.params;
+
+    if (!id) {
+        return res.status(400).json({ error: 'Missing address ID parameter' });
+    }
+
+    const checkQuery = `SELECT * FROM tbl_address WHERE AddressID = ?`;
+    const deleteQuery = `DELETE FROM tbl_address WHERE AddressID = ?`;
+
+    try {
+        // Check if the address exists before deleting
+        const [rows] = await db.execute(checkQuery, [id]);
+
+        if (rows.length === 0) {
+            return res.status(404).json({ message: 'Address not found' });
+        }
+
+        // Delete the address
+        await db.execute(deleteQuery, [id]);
+
+        res.status(200).json({ message: 'Address deleted successfully' });
+    } catch (err) {
+        console.error('Error deleting data: ', err);
+        res.status(500).json({ error: 'Failed to delete data from the database' });
+    }
+});
+
 export default checkout;

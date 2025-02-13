@@ -17,7 +17,7 @@ productsRoute.get('/collection', async (req, res) => {
             SELECT 
                 c.CategoryName, p.ProductID, p.CategoryID, p.SubCategoryIDone, p.ProductName,
                 p.ProductPrice, p.CashPrice, p.Image, a.id as aid, av.id as attributeValuesId,
-                av.value as attributeValue, a.attribute_name as AttributeName 
+                av.value as attributeValue, a.attribute_name as AttributeName,p.ProductUrl
             FROM tbl_category c
             JOIN tbl_products p ON p.CategoryID = c.CategoryID
             JOIN tbl_productattribute pa ON pa.ProductID = p.ProductID
@@ -42,6 +42,7 @@ productsRoute.get('/collection', async (req, res) => {
                     ProductID: curr.ProductID,
                     ProductName: curr.ProductName,
                     Image: curr.Image,
+                    url:curr.ProductUrl,
                     ProductPrice: curr.ProductPrice,
                     CashPrice: curr.CashPrice,
                     CategoryID: Buffer.from(curr.CategoryID.toString()).toString('base64'),
@@ -114,7 +115,8 @@ productsRoute.get('/all-collection', async (req, res) => {
                 p.CategoryID, 
                 p.SubCategoryIDone, 
                 p.ProductName, 
-                p.ProductPrice, 
+                p.ProductPrice,
+                p.ProductUrl, 
                 p.Image, 
                 p.CashPrice,  -- ✅ Keep actual CashPrice for reference
                 a.id AS aid,  
@@ -142,6 +144,7 @@ productsRoute.get('/all-collection', async (req, res) => {
                 acc[curr.ProductID] = {
                     ProductID: curr.ProductID,
                     ProductName: curr.ProductName,
+                    url:curr.ProductUrl,
                     Image: curr.Image,
                     ProductPrice: curr.ProductPrice,
                     CashPrice: curr.CashPrice,
@@ -203,7 +206,7 @@ productsRoute.post('/search', async (req, res) => {
         // Construct base SQL query
         let query = `
             SELECT DISTINCT p.ProductID, p.ProductName, p.Image, p.ProductPrice, 
-                            p.CashPrice, p.CategoryID, p.SubCategoryIDone
+                            p.CashPrice, p.CategoryID, p.SubCategoryIDone,p.ProductUrl
         `;
 
         let conditions = [];
@@ -269,6 +272,7 @@ productsRoute.post('/search', async (req, res) => {
                     ProductID:Buffer.from( product.ProductID.toString()).toString('base64'),
                     ProductName: product.ProductName,
                     Image: product.Image,
+                    url:product.ProductUrl,
                     ProductPrice: product.ProductPrice,
                     CashPrice: product.CashPrice,
                     CategoryID: Buffer.from(product.CategoryID.toString()).toString('base64'),

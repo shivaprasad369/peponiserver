@@ -23,7 +23,7 @@ homeRoute.get('/collection', async (req, res) => {
         }
 
         const [data] = await db.query(`
-           SELECT p.ProductName,f.name, p.ProductID,p.ProductPrice,p.CashPrice, p.CategoryID,c.CategoryName, p.Image, p.SubCategoryIDone, 
+           SELECT p.ProductName,f.name, p.ProductID,p.ProductUrl,p.ProductPrice,p.CashPrice, p.CategoryID,c.CategoryName, p.Image, p.SubCategoryIDone, 
                    av.value AS attributeValue, a.attribute_name AS AttributeName, 
                    a.id AS aid, av.id AS attributeValuesId
             FROM tbl_featureproducts f
@@ -41,6 +41,7 @@ homeRoute.get('/collection', async (req, res) => {
                 acc[curr.ProductID] = {
                     ProductID:Buffer.from(curr.ProductID.toString()).toString('base64'),
                     ProductName: curr.ProductName,
+                    url:curr.ProductUrl,
                     CategoryName:curr.CategoryName,
                     Image: curr.Image,
                     ProductPrice: curr.ProductPrice,
@@ -223,5 +224,47 @@ homeRoute.post("/newletter", async (req, res) => {
     }
 });
 
+homeRoute.get("/search", async (req, res) => {
+    const { query } = req.query; // Get search query from URL params
+  
+    if (!query) {
+      return res.status(400).json({ error: "Search query is required" });
+    }
+  
+    try {
+      const sql = `SELECT * FROM tbl_products 
+      WHERE ProductName LIKE ? OR Description LIKE ? 
+      OR MetaDescription LIKE ? OR MetaKeyWords LIKE ?
+       ORDER BY ProductName LIMIT 6`;
+      const searchTerm = `%${query}%`; // Add wildcards for partial matching
+      const [results] = await db.execute(sql, [searchTerm,searchTerm, searchTerm,searchTerm]);
+  
+      res.json(results);
+    } catch (error) {
+      console.error("Error fetching search results:", error);
+      res.status(500).json({ error: "Internal Server Error" });
+    }
+  });
+  homeRoute.get('/quantity',async(req,res)=>{
+    try{
+        const {cartNumber,email}=req.query;
+        let checkQuery=``
+        let checkParams=[]
+
+        if(email){
+            checkQuery+='SELECT COUNT(*) as total FROM tbl_finalcart WHERE UserEmail=?'
+            checkParams.push(email)
+        }
+        else{
+            checkQuery+='SELECT COUNT(*) as total FROM tbl_tempcart WHERE CartNumber=?'
+            checkParams.push(cartNumber)
+        }
+      const [result] = await db.query(checkQuery,checkParams);
+      res.status(200).json({message:'Quantity fetched successfully',result:result});
+    }catch(error){
+      console.error('Error fetching quantity:',error);
+      res.status(500).json({error:error.message});
+    }
+  })
 
 export default homeRoute;
