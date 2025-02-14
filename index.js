@@ -29,13 +29,17 @@ import cartRoute from './Cart/cart.js';
 import blogsRoute from './HomePage/blog.js';
 import checkout from './Checkout/checkout.js';
 import newCartRoute from './Cart/New.js';
+import contactRoute from './contact/contact.js';
+import paymentRoute from './stripe/payment.js';
+import Stripe from 'stripe';
 const numCPUs = os.cpus().length; 
 const app = express()
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
-
+// const stripe = require("stripe")('sk_test_51P25vZSAtyRKeDt751BHgHIA7gpHGGKgVRB9N4oreEa2xmwK8Wv7Oj2YzZ63EYLa2pvuW6J4UsnOjbSZ7oWpVln200l5pi3kVu');
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 app.use(cors());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
@@ -63,6 +67,8 @@ app.use('/product-details',detailRoute)
 app.use('/cart',newCartRoute)
 app.use('/frontend-blog',blogsRoute)
 app.use('/checkout',checkout)
+app.use('/contact',contactRoute)
+app.use('/payment',paymentRoute)
 
 app.get("/test-db", async (req, res) => {
     console.log("connected");
@@ -74,6 +80,37 @@ app.get("/test-db", async (req, res) => {
       res.status(500).send("Database connection failed");
     }
   });
+
+  const calculateOrderAmount = (items) => {
+    // Calculate the order total on the server to prevent
+    // people from directly manipulating the amount on the client
+    let total = 0;
+    items.forEach((item) => {
+      total += item.amount;
+    });
+    return total;
+  };
+  
+  app.post("/create-payment-intent", async (req, res) => {
+    const { items } = req.body;
+  
+    // Create a PaymentIntent with the order amount and currency
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: calculateOrderAmount(items),
+      currency: "usd",
+      description: "This is for GFG Stripe API Demo",
+      automatic_payment_methods: {
+          enabled: true,
+      }
+    });
+  
+    res.send({
+      clientSecret: paymentIntent.client_secret,
+    });
+  });
+
+
+
 
 
 
