@@ -85,7 +85,7 @@ paymentRoute.post('/create-payment-intent', async (req, res) => {
           // Update tbl_finalmaster with payment details
           const [updateMaster] = await db.query(
             'UPDATE tbl_finalmaster SET stripeid=?, OrderDate=?, OrderStatus=? WHERE UserEmail=? AND stripeid IS NULL',
-            [paymentIntent.id, new Date(), 'Placed Order', email]
+            [paymentIntent.id, new Date(), 0, email]
           );
   
           if (updateMaster.affectedRows > 0) {
