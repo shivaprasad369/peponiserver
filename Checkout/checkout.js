@@ -36,8 +36,8 @@ checkout.post("/", async (req, res) => {
 
   try {
     // Check if the user already has an entry in `tbl_finalmaster`
-    const checkQuery = `SELECT * FROM tbl_finalmaster WHERE UserEmail = ?`;
-    const [existingRecord] = await db.execute(checkQuery, [UserEmail]);
+    const checkQuery = `SELECT * FROM tbl_finalmaster WHERE UserEmail = ? AND stripeid IS NULL`;
+    const [existingRecords] = await db.execute(checkQuery, [UserEmail]);
 
     let finalAddressId = addressId;
 
@@ -76,15 +76,22 @@ checkout.post("/", async (req, res) => {
       finalAddressId = result.insertId; // Store the new address ID
     }
 
-    if (existingRecord.length > 0) {
+    if (existingRecords.length > 0) {
       // If record exists, update `tbl_finalmaster` with the new addressId
       const updateQuery = `
         UPDATE tbl_finalmaster SET
-          addressID = ?, GrandItemTotal = ?, ShippingPrice = ?, GrandTotal = ?
-        WHERE UserEmail = ?
+          addressID = ?, BillingFirstname = ?, BillingLastname = ?, BillingAddress = ?, BillingAddressLine2 = ?,
+          BillingEmailID = ?, BillingPhone = ?, BillingCity = ?, BillingPostalcode = ?, BillingCountry = ?,
+          ShippingFirstname = ?, ShippingLastname = ?, ShippingAddress = ?, ShippingAddressLine2 = ?,
+          ShippingEmailID = ?, ShippingPhone = ?, ShippingCity = ?, ShippingPostalcode = ?, ShippingCountry = ?, 
+          GrandItemTotal = ?, ShippingPrice = ?, GrandTotal = ?
+        WHERE UserEmail = ? AND stripeid IS NULL
       `;
       const updateValues = [
-        finalAddressId, GrandItemTotal || 0, ShippingPrice || 0, GrandTotal || 0, UserEmail
+        finalAddressId, BillingFirstname, BillingLastname, BillingAddress, BillingAddressLine2, BillingEmailID, 
+        BillingPhone, BillingCity, BillingPostalcode, BillingCountry, ShippingFirstname, ShippingLastname, 
+        ShippingAddress, ShippingAddressLine2, ShippingEmailID, ShippingPhone, ShippingCity, ShippingPostalcode, ShippingCountry,
+        GrandItemTotal || 0, ShippingPrice || 0, GrandTotal || 0, UserEmail
       ];
       await db.execute(updateQuery, updateValues);
       return res.status(200).json({ message: "Order updated successfully", addressId: finalAddressId });
@@ -92,11 +99,21 @@ checkout.post("/", async (req, res) => {
       // If no record, insert into `tbl_finalmaster` with the new addressId
       const insertQuery = `
         INSERT INTO tbl_finalmaster (
-          UserEmail, addressID, OrderNumber, GrandItemTotal, ShippingPrice, GrandTotal
-        ) VALUES (?, ?, ?, ?, ?, ?)
+          UserEmail, addressID, OrderNumber, BillingFirstname, BillingLastname, BillingAddress, 
+          BillingAddressLine2, BillingEmailID, 
+          BillingPhone, BillingCity, BillingPostalcode, BillingCountry, ShippingFirstname, ShippingLastname, 
+          ShippingAddress, ShippingAddressLine2, ShippingEmailID, ShippingPhone, ShippingCity,
+          ShippingPostalcode, ShippingCountry,
+          GrandItemTotal, ShippingPrice, GrandTotal
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
       const insertValues = [
-        UserEmail, finalAddressId, OrderNumber, GrandItemTotal || 0, ShippingPrice || 0, GrandTotal || 0
+        UserEmail, finalAddressId, OrderNumber, BillingFirstname, BillingLastname, BillingAddress, 
+        BillingAddressLine2, BillingEmailID, 
+        BillingPhone, BillingCity, BillingPostalcode, BillingCountry, ShippingFirstname, ShippingLastname, 
+        ShippingAddress, ShippingAddressLine2, ShippingEmailID, ShippingPhone, ShippingCity, 
+        ShippingPostalcode, ShippingCountry,
+        GrandItemTotal || 0, ShippingPrice || 0, GrandTotal || 0
       ];
       await db.execute(insertQuery, insertValues);
       return res.status(201).json({ message: "New order and address added successfully", addressId: finalAddressId });

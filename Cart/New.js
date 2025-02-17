@@ -162,38 +162,39 @@ newCartRoute.get("/get-cart-by-number", async (req, res) => {
             }
             const userId=id ||null
             let values = [
-                userId,
-                email || null,
-                email ? null: cartItems.CartNumber,
-                decodedProductID,
-                cartItems.ProductAttributeID,
-                cartItems.Price || 0,
-                cartItems.Qty || 1,
-                cartItems.Price * cartItems.Qty || 0,
-                cartItems.TranxRef || `TRX-${Date.now()}`,
-                new Date(),
-                cartItems.Voucherprice || 0,
+                // userId,
+                // email || null,
+                // email ? null: cartItems.CartNumber,
+                // decodedProductID,
+                // cartItems.ProductAttributeID,
+                // cartItems.Price || 0,
+                // cartItems.Qty || 1,
+                // cartItems.Price * cartItems.Qty || 0,
+                // cartItems.TranxRef || `TRX-${Date.now()}`,
+                // new Date(),
+                // cartItems.Voucherprice || 0,
             ];
             let insertQuery=``;
+            let queryParams=[]
             if(email){
-                values = [
+              queryParams.push(
                   
                     email || null,
                     decodedProductID,
-                    cartItems.ProductAttributeID,
                     cartItems.Price || 0,
                     cartItems.Qty || 1,
                     cartItems.Price * cartItems.Qty || 0,
-                   
-                ];
+                    cartItems.ProductAttributeID,
+              )
+                console.log(values,JSON.stringify( cartItems));
          insertQuery = `
-                INSERT INTO tbl_finalcart (UserEmail, ProductID, ProductAttributeID, 
-                    Price, Qty, ItemTotal) 
+                INSERT INTO tbl_finalcart (UserEmail, ProductID, 
+                    Price, Qty, ItemTotal, ProductAttributeId) 
                 VALUES (?, ?, ?, ?, ?, ?)`;
             }
             else{
-               values = [
-                    userId,
+              queryParams.push(
+                                   userId,
                     email || null,
                      cartItems.CartNumber,
                     decodedProductID,
@@ -204,14 +205,14 @@ newCartRoute.get("/get-cart-by-number", async (req, res) => {
                     cartItems.TranxRef || `TRX-${Date.now()}`,
                     new Date(),
                     cartItems.Voucherprice || 0,
-                ];
+            )
                 insertQuery = `
                 INSERT INTO tbl_tempcart (UserID, UserEmail, CartNumber, ProductID, ProductAttributeID, 
                     Price, Qty, ItemTotal, TranxRef, CartDate, Voucherprice) 
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
             }
-           const [result]= await db.execute(insertQuery, values);
+           const [result]= await db.execute(insertQuery, queryParams);
             if(result.affectedRows>0) {
                 return res.status(200).json({ message: "Cart item stored successfully",id: result.insertId });
             } else {
@@ -329,12 +330,13 @@ newCartRoute.put("/update-quantity", async (req, res) => {
                     [newQty, email, ProductID]
                 );
             } else {
+              const newItemTotal = Qty * Number(Price);
                 [result] = await db.execute(
-                    `INSERT INTO tbl_finalcart (UserEmail, ProductID, ProductAttributeID, 
-                    Price, Qty) 
-                VALUES (?, ?, ?, ?, ?)`
+                    `INSERT INTO tbl_finalcart (UserEmail, ProductID,  
+                    Price, ProductAttributeId,ItemTotal,Qty) 
+                VALUES (?, ?, ?, ?, ?,?)`
                     ,
-                    [ email, ProductID,Price,ProductAttributeID,Qty]
+                    [ email, ProductID,Price,ProductAttributeID||null,newItemTotal,Qty]
                 );
             }
             if (result.affectedRows > 0) {

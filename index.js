@@ -81,34 +81,28 @@ app.get("/test-db", async (req, res) => {
     }
   });
 
-  const calculateOrderAmount = (items) => {
-    // Calculate the order total on the server to prevent
-    // people from directly manipulating the amount on the client
-    let total = 0;
-    items.forEach((item) => {
-      total += item.amount;
-    });
-    return total;
-  };
-  
-  app.post("/create-payment-intent", async (req, res) => {
-    const { items } = req.body;
-  
-    // Create a PaymentIntent with the order amount and currency
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: calculateOrderAmount(items),
-      currency: "usd",
-      description: "This is for GFG Stripe API Demo",
-      automatic_payment_methods: {
-          enabled: true,
-      }
-    });
-  
-    res.send({
-      clientSecret: paymentIntent.client_secret,
-    });
-  });
+  const calculateTotalOrderAmount = (items) => {
+    return items * 100;
+};
 
+app.post("/create-payment-intent", async (req, res) => {
+    const { items } = req.body;
+
+    const paymentIntent = await stripe.paymentIntents.create({
+        amount: calculateTotalOrderAmount(49),
+        currency: "inr",
+        description: "This is for GFG St  ripe API Demo",
+        automatic_payment_methods: {
+            enabled: true,
+        },
+      
+        
+    });
+
+    res.send({
+        clientSecret: paymentIntent.client_secret,
+    });
+});
 
 
 

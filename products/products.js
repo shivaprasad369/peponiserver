@@ -14,16 +14,11 @@ productsRoute.get('/collection', async (req, res) => {
 
         // Fetch products and attributes
         const [data] = await db.query(`
-            SELECT 
-                c.CategoryName, p.ProductID, p.CategoryID, p.SubCategoryIDone, p.ProductName,
-                p.ProductPrice, p.CashPrice, p.Image, a.id as aid, av.id as attributeValuesId,
-                av.value as attributeValue, a.attribute_name as AttributeName,p.ProductUrl
-            FROM tbl_category c
-            JOIN tbl_products p ON p.CategoryID = c.CategoryID
-            JOIN tbl_productattribute pa ON pa.ProductID = p.ProductID
-            JOIN attribute_values av ON av.id = pa.AttributeValueID
-            JOIN attributes a ON a.id = av.attribute_id
-            WHERE c.CategoryName = ?`, [name]);
+            SELECT c.CategoryName, p.ProductID, p.CategoryID, p.SubCategoryIDone, p.ProductName,
+             p.ProductPrice, p.CashPrice, p.Image, p.ProductUrl FROM tbl_category c JOIN tbl_products
+              p ON p.CategoryID =
+             c.CategoryID JOIN tbl_productattribute pa ON pa.ProductID = p.ProductID 
+             WHERE c.CategoryName = ?`, [name]);
 
         const [attribute] = await db.query(`
           SELECT 
@@ -47,21 +42,10 @@ productsRoute.get('/collection', async (req, res) => {
                     CashPrice: curr.CashPrice,
                     CategoryID: Buffer.from(curr.CategoryID.toString()).toString('base64'),
                     SubCategoryIDone: curr.SubCategoryIDone,
-                    attributeValues: []
                 };
             }
-
-            acc[curr.ProductID].attributeValues.push({
-                AttributeName: curr.AttributeName,
-                attributeValue: curr.attributeValue,
-                aid: curr.aid,
-                attributeValuesId: curr.attributeValuesId
-            });
-
             return acc;
         }, {});
-
-        // Group attributes by SubCategoryIDone
         const filterDatas = attribute.reduce((acc, curr) => {
            
             // Ensure the SubCategoryIDone key exists in the accumulator
@@ -88,8 +72,9 @@ productsRoute.get('/collection', async (req, res) => {
             return acc;  // Return the accumulator
         }, {});
       const categoryId=
-      Object.keys(filterDatas).map(SubCategoryIDone => {
-        return filterDatas[SubCategoryIDone].CategoryID;
+      Object.keys(filterData).map(SubCategoryIDone => {
+        return  Buffer.from(filterData[SubCategoryIDone].CategoryID, "base64").toString("utf-8")
+       
       });
         // console.log(categoryId)
         res.status(200).json({ products: Object.values(filterData), attribute: filterDatas,CategoryID:categoryId});

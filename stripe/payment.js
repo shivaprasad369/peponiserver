@@ -1,7 +1,9 @@
 import express from 'express'
 import dotenv from "dotenv";
 import Stripe from 'stripe';
+import db from '../db/db.js'
 dotenv.config();
+import nodemailer from 'nodemailer'
 const paymentRoute= express.Router()
 const calculateTax = false;
 
@@ -67,4 +69,138 @@ paymentRoute.post('/create-payment-intent', async (req, res) => {
         });
     }
   });
+
+  paymentRoute.post('/store-payment', async (req, res) => {
+    try {
+      const { email, paymentIntentId } = req.body;
+      const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+  
+      if (paymentIntent.status === 'succeeded') {
+        // Fetch order details
+        const [result] = await db.query('SELECT OrderNumber FROM tbl_finalmaster WHERE UserEmail=? AND stripeid IS NULL', [email]);
+  
+        if (result.length > 0 && result[0].OrderNumber) {
+          const orderNumber = result[0].OrderNumber;
+  
+          // Update tbl_finalmaster with payment details
+          const [updateMaster] = await db.query(
+            'UPDATE tbl_finalmaster SET stripeid=?, OrderDate=?, OrderStatus=? WHERE UserEmail=? AND stripeid IS NULL',
+            [paymentIntent.id, new Date(), 'Placed Order', email]
+          );
+  
+          if (updateMaster.affectedRows > 0) {
+            // Fetch cart items
+            const [getOrder] = await db.query(`
+              SELECT c.ProductID, c.ProductAttributeId, c.Price, c.Qty, c.ItemTotal, p.ProductName
+              FROM tbl_finalcart c 
+              JOIN tbl_products p ON c.ProductID = p.ProductID 
+              WHERE c.UserEmail=?
+            `, [email]);
+  
+            if (getOrder.length > 0) {
+              for (const data of getOrder) {
+                // Insert into tbl_order
+                await db.query(
+                  `INSERT INTO tbl_order (UserEmail, ProductID, ProductAttributeId, Price, Qty, ItemTotal, OrderNumber, OrderDate)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                  [email, data.ProductID, data.ProductAttributeId || null, data.Price, data.Qty, data.ItemTotal || null, orderNumber, new Date()]
+                );
+  
+                // Update product stock
+                await db.query(`UPDATE tbl_products SET Stock = Stock - ? WHERE ProductID = ?`, [data.Qty, data.ProductID]);
+              }
+  
+              // Send Order Confirmation Email
+              await sendOrderConfirmationEmail(email, getOrder, orderNumber);
+  
+              // Delete items from tbl_finalcart after successful insertion
+              const [deleteCart] = await db.query('DELETE FROM tbl_finalcart WHERE UserEmail=?', [email]);
+  
+              if (deleteCart.affectedRows > 0) {
+                return res.status(200).json({ message: 'Payment successful, order placed, email sent' });
+              } else {
+                return res.status(400).json({ message: 'Failed to delete cart items' });
+              }
+            } else {
+              return res.status(400).json({ message: 'No items found in cart' });
+            }
+          } else {
+            return res.status(400).json({ message: 'Failed to update order details' });
+          }
+        } else {
+          return res.status(400).json({ message: 'No order found for this user' });
+        }
+      } else {
+        return res.status(400).json({ message: 'Payment was not successful' });
+      }
+    } catch (error) {
+      console.error("Error in store-payment:", error);
+      res.status(500).json({ message: 'Internal server error', error: error.message });
+    }
+  });
+  async function sendOrderConfirmationEmail(userEmail, orderItems, orderNumber) {
+ const transporter = nodemailer.createTransport({
+   service: 'gmail',
+   auth: {
+     user: process.env.EMAIL_USER,
+     pass: process.env.EMAIL_PASSWORD,
+   },
+ });
+  
+ let orderDetails = orderItems.map(item => `
+  <tr>
+    <td style="padding: 10px; border-bottom: 1px solid #ddd;">${item.ProductName}</td>
+    <td style="padding: 10px; border-bottom: 1px solid #ddd; text-align: center;">${item.Qty}</td>
+    <td style="padding: 10px; border-bottom: 1px solid #ddd; text-align: right;">₹${item.Price}</td>
+    <td style="padding: 10px; border-bottom: 1px solid #ddd; text-align: right;">₹${item.ItemTotal}</td>
+  </tr>
+`).join('');
+  
+let emailHTML = `
+<div style="max-width: 600px; margin: auto; font-family: Arial, sans-serif; color: #333;">
+  <div style="background: #007bff; color: #fff; padding: 20px; text-align: center; font-size: 22px; font-weight: bold;">
+    Order Confirmation
+  </div>
+
+  <div style="padding: 20px;">
+    <p style="font-size: 16px;">Hello,</p>
+    <p>Thank you for your order. Here are your order details:</p>
+
+    <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+      <tr style="background: #f2f2f2;">
+        <th style="padding: 10px; text-align: left;">Product Name</th>
+        <th style="padding: 10px; text-align: center;">Quantity</th>
+        <th style="padding: 10px; text-align: right;">Price</th>
+        <th style="padding: 10px; text-align: right;">Total</th>
+      </tr>
+      ${orderDetails}
+    </table>
+
+    <p style="margin-top: 20px;"><strong>Order Date:</strong> ${new Date().toLocaleString()}</p>
+    <p><strong>Order Number:</strong> ${orderNumber}</p>
+
+    <div style="margin-top: 20px; padding: 15px; background: #28a745; color: #fff; text-align: center; font-size: 18px; font-weight: bold;">
+      Thank you for shopping with us!
+    </div>
+  </div>
+</div>
+`;
+  
+    let mailOptions = {
+      from:process.env.EMAIL_USER,
+      to: userEmail,
+      subject: 'Your Order Confirmation',
+      html: emailHTML
+    };
+  
+    try {
+      await transporter.sendMail(mailOptions);
+      console.log('Order confirmation email sent to:', userEmail);
+    } catch (error) {
+      console.error('Error sending email:', error);
+    }
+  }
+  
+  
+  
   export default paymentRoute;

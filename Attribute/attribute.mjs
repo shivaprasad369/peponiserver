@@ -6,13 +6,10 @@ attributeRoute.get("/", async (req, res) => {
   const connection = await db.getConnection();
   try {
       const [attributes] = await connection.query(
-          `SELECT a.attribute_name, v.value, a.CategoryID, a.id, v.id as value_id, 
-          a.subcategory, a.subcategorytwo, c.CategoryName, 
-          sc.CategoryName as subcategoryName 
+          `SELECT a.attribute_name, v.value,  a.id as attribute_id, v.id as value_id
           FROM attributes a
           JOIN attribute_values v ON a.id = v.attribute_id
-          JOIN tbl_category c ON a.CategoryID = c.CategoryID 
-          JOIN tbl_category sc ON a.subcategory = sc.CategoryID
+         
           `
       );
       // SELECT a.attribute_name, v.value, a.CategoryID, a.id, v.id as value_id, 
@@ -28,51 +25,26 @@ attributeRoute.get("/", async (req, res) => {
           return res.status(404).json({ message: "No attributes found for the categories" });
       }
 
-      // Reducing to properly structure and group attributes with their values
       const result = attributes.reduce((acc, curr) => {
-        // Find the category group
-        let category = acc.find(item =>
-          item.CategoryID === curr.CategoryID &&
-          item.subcategory === curr.subcategory &&
-          // item.subcategorytwo === curr.subcategorytwo &&
-          item.CategoryName === curr.CategoryName
-        );
-      
-        // If category group doesn't exist, create it
-        if (!category) {
-          category = {
-            CategoryID: curr.CategoryID,
-            subcategory: curr.subcategory,
-            subcategorytwo: curr.subcategorytwo,
-            CategoryName: curr.CategoryName,
-            subcategoryName: curr.subcategoryName,
-            subcategorytwoName: curr.subcategorytwoName,
-            attributes: [] // Initialize the attributes array
-          };
-          acc.push(category);
-        }
-      
-        // Find or create the attribute within the category
-        let existingAttribute = category.attributes.find(attr => attr.attribute_id === curr.id);
-      
+        let existingAttribute = acc.find(attr => attr.attribute_id === curr.attribute_id);
+        
         if (!existingAttribute) {
           existingAttribute = {
-            attribute_id: curr.id,
+            attribute_id: curr.attribute_id,
             attributeName: curr.attribute_name,
-            values: [] // Initialize values array
+            values: []
           };
-          category.attributes.push(existingAttribute);
+          acc.push(existingAttribute);
         }
-      
-        // Add value if it doesn't already exist
+  
+        // Add value if not already present
         if (!existingAttribute.values.some(value => value.id === curr.value_id)) {
           existingAttribute.values.push({ id: curr.value_id, value: curr.value });
         }
-      
+  
         return acc;
       }, []);
-      
-      
+  
       res.status(200).json(result);
   } catch (error) {
       res.status(500).json({ message: "Internal server error", error: error.message });
@@ -148,21 +120,19 @@ attributeRoute.get("/:id", async (req, res) => {
 });
 
 attributeRoute.post("/", async (req, res) => {
-    const { Attributes ,categoryId,subCategoryId } = req.body;
+    const { Attributes } = req.body;
 
     if (!Attributes || !Array.isArray(Attributes)) {
         return res.status(400).json({ message: "Attributes must be provided as an array" });
     }
-if(!categoryId || !subCategoryId || isNaN(categoryId) || isNaN(subCategoryId)){
-    return res.status(400).json({ message: "CategoryID,subcategory must be provided" });
-}
+
     const connection = await db.getConnection(); 
     try {
         await connection.beginTransaction();
         for (const attribute of Attributes) {
             const [attributeResult] = await connection.query(
-                "INSERT INTO attributes (attribute_name,CategoryID,subcategory) VALUES (?,?,?)",
-                [attribute.attributeName,categoryId,subCategoryId]
+                "INSERT INTO attributes (attribute_name) VALUES (?)",
+                [attribute.attributeName]
             );
             const attributeId = attributeResult.insertId; 
             for (const attributeValue of attribute.values) {
@@ -192,16 +162,7 @@ console.log(Attributes)
     return res.status(400).json({ message: "Attributes must be provided as an array" });
   }
 
-  if (
-    !categoryId ||
-    !subCategoryId ||
-    isNaN(categoryId) ||
-    isNaN(subCategoryId)
-  ) {
-    return res
-      .status(400)
-      .json({ message: "CategoryID, subCategoryId must be valid numbers" });
-  }
+ 
 
   const connection = await db.getConnection();
   try {
@@ -212,9 +173,9 @@ console.log(Attributes)
       const [attributePresent] = await connection.query('SELECT * FROM attributes WHERE id=?', [attributeId]);
       if (attributePresent.length === 0) {
         const [insertResult] = await connection.query(
-          `INSERT INTO attributes (attribute_name, CategoryID, subcategory)
-           VALUES (?, ?, ?)`,
-          [attribute.attributeName, categoryId, subCategoryId]
+          `INSERT INTO attributes (attribute_name)
+           VALUES (?)`,
+          [attribute.attributeName]
         );
         attributeId = insertResult.insertId; 
         console.log(`Inserted new attribute with ID: ${attributeId}`);
@@ -222,11 +183,9 @@ console.log(Attributes)
         console.log(`Processing attributeId: ${attributeId}, attributeName: ${attribute.attributeName}`);
         const [attributeResult] = await connection.query(
           `UPDATE attributes 
-           SET attribute_name = ?, 
-               CategoryID = ?, 
-               subcategory = ?   
+           SET attribute_name = ?  
            WHERE id = ?`,
-          [attribute.attributeName, categoryId, subCategoryId, attributeId]
+          [attribute.attributeName, attributeId]
         );
         console.log(`Update result for attributeId ${attributeId}: affectedRows = ${attributeResult.affectedRows}`);
   

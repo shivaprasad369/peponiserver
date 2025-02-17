@@ -223,7 +223,34 @@ homeRoute.post("/newletter", async (req, res) => {
         });
     }
 });
-
+homeRoute.get("/attri/attributess", async (req, res) => {
+    const [result] = await db.query(`
+        SELECT a.attribute_name, a.id, av.value ,av.id as valueId
+        FROM attributes a
+        LEFT JOIN attribute_values av ON a.id = av.attribute_id
+    `);
+    const groupedData = result.reduce((acc, item) => {
+        let group = acc.find(group => group.attribute_name === item.attribute_name);
+    
+        if (!group) {
+            group = {
+                attribute_name: item.attribute_name,
+               
+                value: []
+            };
+            acc.push(group);
+        }
+        group.value.push({
+            value: item.value,
+         
+        });
+    
+        return acc;
+    }, []);
+    console.log(result)
+    res.status(200).json(groupedData);
+    
+});
 homeRoute.get("/search", async (req, res) => {
     const { query } = req.query; // Get search query from URL params
   
@@ -266,5 +293,159 @@ homeRoute.get("/search", async (req, res) => {
       res.status(500).json({error:error.message});
     }
   })
+
+  homeRoute.get('/dashboard', async (req, res) => {
+    const { email } = req.query;
+
+    if (!email) {
+        return res.status(400).json({ error: "Email is required" });
+    }
+
+    try {
+        const [results] = await db.query(
+            `SELECT o.OrderNumber, 
+                    o.OrderDate, 
+                    fm.OrderStatus, 
+                    p.ProductID, 
+                    p.ProductName, 
+                    p.Image AS ProductImages,
+                    o.Qty AS Quantities, 
+                    o.Price, 
+                    o.ItemTotal
+             FROM tbl_order o 
+             JOIN tbl_finalmaster fm ON o.OrderNumber COLLATE utf8mb4_unicode_ci = fm.OrderNumber 
+             LEFT JOIN tbl_products p ON p.ProductID = o.ProductID
+             WHERE o.UserEmail = ?`,
+            [email]
+        );
+
+        if (results.length === 0) {
+            return res.status(404).json({ message: "No orders found for this user" });
+        }
+
+        // Group orders by OrderNumber and format products, while calculating the total
+        const formattedResults = results.reduce((acc, order) => {
+            const existingOrder = acc.find(o => o.OrderNumber === order.OrderNumber);
+
+            if (existingOrder) {
+                existingOrder.Products.push({
+                    ProductImages:  order.ProductImages,  // Add prefix for image path
+                    ProductID: order.ProductID,
+                    Quantities: order.Quantities,
+                    Price: order.Price,
+                    ItemTotal: order.ItemTotal
+                });
+
+                // Add the ItemTotal to the order's Total
+                existingOrder.Total += order.ItemTotal;
+            } else {
+                acc.push({
+                    OrderNumber: order.OrderNumber,
+                    OrderDate: new Date(order.OrderDate).toLocaleDateString(),  // Format OrderDate
+                    OrderStatus: order.OrderStatus,
+                    Total: order.ItemTotal,  // Initialize Total with the first item's total
+                    Products: [{
+                        ProductImages:  order.ProductImages,  // Add prefix for image path
+                        ProductID: order.ProductID,
+                        Quantities: order.Quantities,
+                        Price: order.Price,
+                        ItemTotal: order.ItemTotal
+                    }]
+                });
+            }
+
+            return acc;
+        }, []);
+
+        res.status(200).json({ message: 'Dashboard fetched successfully', result: formattedResults });
+    } catch (error) {
+        console.error('Error fetching dashboard:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+homeRoute.get('/dashboard/product', async (req, res) => {
+    const { email, id } = req.query;
+
+    if (!email) {
+        return res.status(400).json({ error: "Email is required" });
+    }
+
+    try {
+        // Fetch order details from the database
+        const [results] = await db.query(
+            `SELECT o.OrderNumber, 
+                    o.OrderDate, 
+                    fm.*, 
+                    p.ProductID, 
+                    p.ProductName, 
+                    p.Image AS ProductImages,
+                    o.Qty AS Quantities, 
+                    o.Price, 
+                    o.ItemTotal
+             FROM tbl_order o 
+             JOIN tbl_finalmaster fm ON o.OrderNumber COLLATE utf8mb4_unicode_ci = fm.OrderNumber 
+             LEFT JOIN tbl_products p ON p.ProductID = o.ProductID
+             WHERE o.UserEmail = ? AND fm.OrderNumber = ?`,
+            [email, id]
+        );
+
+        // Check if results are empty
+        if (results.length === 0) {
+            return res.status(404).json({ message: "No orders found for this user" });
+        }
+
+        // Format and group the orders by OrderNumber
+        const formattedResults = results.reduce((acc, order) => {
+            const existingOrder = acc.find(o => o.OrderNumber === order.OrderNumber);
+
+            if (existingOrder) {
+                existingOrder.Products.push({
+                    ProductImages: order.ProductImages,  // Add prefix for image path
+                    ProductID: order.ProductID,
+                    Quantities: order.Quantities,
+                    Price: order.Price,
+                    ItemTotal: order.ItemTotal,
+                    ProductName: order.ProductName
+                     // Include other fields like stripeid, etc.
+                });
+
+                // Add the ItemTotal to the order's Total
+                existingOrder.Total += order.ItemTotal;
+            } else {
+                // If the order is not found, create a new entry in the accumulator
+                acc.push({
+                    OrderNumber: order.OrderNumber,
+                    OrderDate: new Date(order.OrderDate).toLocaleDateString(), // Format the date
+                    OrderStatus: order.OrderStatus,
+                    Total: order.ItemTotal,  
+                    stripeid: order.stripeid,
+                    ...order,
+                    // Include other fields like info from tbl_finalmaster
+                    Products: [{
+                        ProductImages: order.ProductImages , // Add prefix for image path
+                        ProductID: order.ProductID,
+                        Quantities: order.Quantities,
+                    ProductName: order.ProductName,
+
+                        Price: order.Price,
+                        ItemTotal: order.ItemTotal
+                    }]
+                });
+            }
+
+            return acc;
+        }, []);
+
+        // Send the formatted response
+        res.status(200).json({ message: 'Dashboard fetched successfully', result: formattedResults });
+    } catch (error) {
+        console.error('Error fetching dashboard:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+
+
+
 
 export default homeRoute;
