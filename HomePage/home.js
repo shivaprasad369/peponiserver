@@ -359,7 +359,7 @@ homeRoute.get("/search", async (req, res) => {
 
         res.status(200).json({ message: 'Dashboard fetched successfully', result: formattedResults });
     } catch (error) {
-        console.error('Error fetching dashboard:', error);
+        console.log('Error fetching dashboard:', error);
         res.status(500).json({ error: error.message });
     }
 });
@@ -443,6 +443,20 @@ homeRoute.get('/dashboard/product', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+
+
+
+homeRoute.get('/CatID',async(req,res)=>{
+    try {
+        const CatID = req.query.name;
+        const [results] = await db.query('SELECT CategoryID FROM tbl_category WHERE CategoryName=? AND SubCategoryLevel=1',[CatID]);
+        res.status(200).json({message:'Category fetched successfully',result:results});
+        
+    } catch (error) {
+        console.error('Error fetching category:', error);
+        res.status(500).json({ error: error.message });
+        }
+})
 
 
 
