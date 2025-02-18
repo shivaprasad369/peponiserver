@@ -84,18 +84,11 @@ paymentRoute.post('/create-payment-intent', async (req, res) => {
               return res.status(400).json({ message: 'Payment was not successful' });
           }
   
-<<<<<<< HEAD
           // Fetch order details
           const [result] = await connection.query(
               'SELECT FinalMasterId, OrderNumber FROM tbl_finalmaster WHERE UserEmail=? AND stripeid IS NULL FOR UPDATE',
               [email]
-=======
-          // Update tbl_finalmaster with payment details
-          const [updateMaster] = await db.query(
-            'UPDATE tbl_finalmaster SET stripeid=?, OrderDate=?, OrderStatus=? WHERE UserEmail=? AND stripeid IS NULL',
-            [paymentIntent.id, new Date(), 0, email]
->>>>>>> 16779861af2c1292ae186e67a83387435d1bf5bd
-          );
+          )
   
           if (result.length === 0) {
               return res.status(400).json({ message: 'No order found for this user' });
