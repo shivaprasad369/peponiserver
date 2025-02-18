@@ -167,7 +167,7 @@ productsRoute.get('/all-collection', async (req, res) => {
 
 productsRoute.post('/search', async (req, res) => {
     try {
-        const { categories, subcategories, attributes, priceRange, sortField, sortOrder } = req.body;  
+        const { categories, subcategories, attributes, priceRange, sortField, sortOrder,name } = req.body;  
 
         console.log("Categories received:", categories);
         console.log("Subcategories received:", subcategories);
@@ -258,6 +258,140 @@ productsRoute.post('/search', async (req, res) => {
                     ProductName: product.ProductName,
                     Image: product.Image,
                     url:product.ProductUrl,
+                    ProductPrice: product.ProductPrice,
+                    CashPrice: product.CashPrice,
+                    CategoryID: Buffer.from(product.CategoryID.toString()).toString('base64'),
+                    SubCategoryIDone: product.SubCategoryIDone,
+                    attributes: []
+                };
+                acc.push(existingProduct);
+            }
+
+            // Add attribute details if available
+            if (product.AttributeName && product.AttributeValue) {
+                existingProduct.attributes.push({
+                    AttributeName: product.AttributeName,
+                    AttributeValue: product.AttributeValue
+                });
+            }
+
+            return acc;
+        }, []);
+
+        res.status(200).json(filterData);
+
+    } catch (error) {
+        console.error("Error fetching products by category, subcategory & attributes:", error);
+        res.status(500).json({ error: error.message });
+    }
+});
+productsRoute.post('/sub-search', async (req, res) => {
+    try {
+        const { categories, subcategories, attributes, priceRange, sortField, sortOrder, name } = req.body;  
+
+        console.log("Categories received:", categories);
+        console.log("Subcategories received:", subcategories);
+        console.log("Attributes received:", attributes);
+        console.log("Price Range received:", priceRange);
+        console.log("Sorting received:", sortField, sortOrder);
+
+        
+        // If categories is empty, fetch CategoryID
+        if (!categories || categories.length === 0) {
+            const [results] = await db.query(
+                'SELECT CategoryID FROM tbl_category WHERE CategoryName=? AND SubCategoryLevel=1', 
+                [name]
+            );
+            if (results.length > 0) {
+                categoryFilter = [results[0].CategoryID];
+            }
+            else {
+                throw new Error(`No category found for the name "${name}"`);
+            }
+        }
+        let categoryFilter = Array.isArray(categories) ? categories : [];
+
+        // Extract subcategory IDs
+        const subCategoryFilter = subcategories 
+            ? Object.values(subcategories).flat().map(Number) 
+            : [];
+
+        // Allowed sorting fields
+        const allowedSortFields = ["ProductName", "ProductPrice", "CashPrice"];
+        const sortColumn = allowedSortFields.includes(sortField) ? sortField : "ProductID";
+        const order = sortOrder === "asc" ? "ASC" : "DESC";
+
+        // Construct base SQL query
+        let query = `
+            SELECT DISTINCT p.ProductID, p.ProductName, p.Image, p.ProductPrice, 
+                            p.CashPrice, p.CategoryID, p.SubCategoryIDone, p.ProductUrl
+        `;
+
+        let conditions = [];
+        let params = [];
+
+        // Filter by categories
+        if (categoryFilter.length > 0) {
+            conditions.push(`p.CategoryID IN (${categoryFilter.map(() => '?').join(',')})`);
+            params.push(...categoryFilter);
+        }
+
+        // Filter by subcategories
+        if (subCategoryFilter.length > 0) {
+            conditions.push(`p.SubCategoryIDone IN (${subCategoryFilter.map(() => '?').join(',')})`);
+            params.push(...subCategoryFilter);
+        }
+
+        // Handle price range
+        if (priceRange?.length === 2) {
+            conditions.push(`(p.CashPrice BETWEEN ? AND ? )`);
+            params.push(priceRange[0], priceRange[1]);
+        }
+
+        // Handle attributes filtering
+        let joinClauses = "";
+        if (attributes && typeof attributes === 'object' && Object.keys(attributes).length > 0) {
+            Object.keys(attributes).forEach((attrName, index) => {
+                const values = attributes[attrName];
+                if (Array.isArray(values) && values.length > 0) {
+                    joinClauses += `
+                       LEFT JOIN tbl_productattribute pa${index} ON pa${index}.ProductID = p.ProductID
+                       LEFT JOIN attribute_values av${index} ON av${index}.id = pa${index}.AttributeValueID
+                       LEFT JOIN attributes a${index} ON a${index}.id = av${index}.attribute_id
+                    `;
+                    query += `, a${index}.attribute_name AS AttributeName, av${index}.value AS AttributeValue`;
+                    conditions.push(`(a${index}.attribute_name = ? AND av${index}.value IN (${values.map(() => '?').join(',')}))`);
+                    params.push(attrName, ...values);
+                }
+            });
+        }
+
+        // Construct final query
+        query += ` FROM tbl_products p JOIN tbl_category c ON p.CategoryID = c.CategoryID ${joinClauses} `;
+
+        if (conditions.length > 0) {
+            query += ` WHERE ` + conditions.join(" AND ");
+        }
+
+        // Add sorting
+        query += ` ORDER BY p.${sortColumn} ${order}`;
+
+        console.log("Final Query:", query);
+        console.log("Query Parameters:", params);
+
+        // Execute query
+        const [data] = await db.query(query, params);
+
+        // Transform data into structured format
+        const filterData = data.reduce((acc, product) => {
+            let existingProduct = acc.find(p => p.ProductID === product.ProductID);
+
+            if (!existingProduct) {
+                existingProduct = {
+                    ProductID: Buffer.from(product.ProductID.toString()).toString('base64'),
+                    ProductName: product.ProductName,
+                    Image: product.Image,
+                    url: product.ProductUrl,
                     ProductPrice: product.ProductPrice,
                     CashPrice: product.CashPrice,
                     CategoryID: Buffer.from(product.CategoryID.toString()).toString('base64'),
