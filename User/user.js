@@ -3,42 +3,49 @@ import express from 'express';
 import db from '../db/db.js';
 const userRoute = express.Router();
 
-
-
 // Registration endpoint
 userRoute.post('/register', async (req, res) => {
   try {
+    console.log('[Register] Request received:', req.body);
     const { fullName, emailId, phoneNo, isVerified } = req.body;
-    // Convert isVerified to integer
     const verificationStatus = isVerified ? parseInt(isVerified, 10) : 0;
+    
+    console.log('[Register] Parsed data:', {
+      fullName,
+      emailId,
+      phoneNo,
+      verificationStatus
+    });
 
-    // Basic validation: phoneNo is optional
     if (!fullName || !emailId) {
+      console.log('[Register] Validation failed: Missing required fields');
       return res.status(400).json({
         success: false,
         message: 'Please provide fullName and emailId'
       });
     }
 
-    // Check if email already exists using updated column name 'email'
+    console.log('[Register] Checking for existing user with email:', emailId);
     const [existingUser] = await db.execute(
       'SELECT email FROM tbl_user WHERE email = ?',
       [emailId]
     );
+    console.log('[Register] Existing user check result:', existingUser);
 
-    // If email exists, return success without doing anything
     if (existingUser.length > 0) {
+      console.log('[Register] User already exists with email:', emailId);
       return res.status(201).json({
         success: true,
         message: 'User registered successfully'
       });
     }
 
-    // Insert user data into database if email doesn't exist
+    console.log('[Register] Attempting to insert new user');
     const [result] = await db.execute(
       'INSERT INTO tbl_user (full_name, email, phone_num, status, is_verified) VALUES (?, ?, ?, ?, ?)',
       [fullName, emailId, phoneNo, 1, verificationStatus]
     );
+    console.log('[Register] Database insert result:', result);
 
     if (result.affectedRows === 1) {
       console.log(`User created successfully with email: ${emailId}`);
@@ -52,6 +59,8 @@ userRoute.post('/register', async (req, res) => {
     }
 
   } catch (error) {
+    console.error('[Register] Error:', error);
+    console.error('[Register] Stack trace:', error.stack);
     res.status(500).json({
       success: false,
       message: 'Error registering user',
@@ -63,25 +72,32 @@ userRoute.post('/register', async (req, res) => {
 // Verification endpoint
 userRoute.put('/verify', async (req, res) => {
   try {
+    console.log('[Verify] Request received:', req.body);
     const { emailId, isVerified } = req.body;
-    // Convert isVerified to integer
     const verificationStatus = parseInt(isVerified, 10);
+    
+    console.log('[Verify] Parsed data:', {
+      emailId,
+      verificationStatus
+    });
 
-    // Basic validation
     if (!emailId || isVerified === undefined) {
+      console.log('[Verify] Validation failed: Missing required fields');
       return res.status(400).json({
         success: false,
         message: 'Please provide emailId and isVerified status'
       });
     }
 
-    // Update verification status
+    console.log('[Verify] Attempting to update verification status');
     const [result] = await db.execute(
       'UPDATE tbl_user SET is_verified = ? WHERE email = ?',
       [verificationStatus, emailId]
     );
+    console.log('[Verify] Database update result:', result);
 
     if (result.affectedRows === 0) {
+      console.log('[Verify] No user found with email:', emailId);
       return res.status(404).json({
         success: false,
         message: 'User not found'
@@ -95,6 +111,8 @@ userRoute.put('/verify', async (req, res) => {
     });
 
   } catch (error) {
+    console.error('[Verify] Error:', error);
+    console.error('[Verify] Stack trace:', error.stack);
     res.status(500).json({
       success: false,
       message: 'Error updating verification status',
