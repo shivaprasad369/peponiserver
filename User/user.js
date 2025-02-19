@@ -121,6 +121,57 @@ userRoute.put('/verify', async (req, res) => {
   }
 });
 
+// Profile endpoint
+userRoute.get('/profile', async (req, res) => {
+  try {
+    console.log('[Profile] Request received:', req.query);
+    const { emailId } = req.query;
+
+    if (!emailId) {
+      console.log('[Profile] Validation failed: Missing email');
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide emailId'
+      });
+    }
+
+    console.log('[Profile] Fetching user profile for email:', emailId);
+    const [users] = await db.execute(
+      'SELECT full_name, email, phone_num FROM tbl_user WHERE email = ?',
+      [emailId]
+    );
+    console.log('[Profile] Database query result:', users);
+
+    if (users.length === 0) {
+      console.log('[Profile] No user found with email:', emailId);
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    const user = users[0];
+    console.log('[Profile] Sending user profile data');
+    res.json({
+      success: true,
+      data: {
+        fullName: user.full_name,
+        email: user.email,
+        phoneNo: user.phone_num
+      }
+    });
+
+  } catch (error) {
+    console.error('[Profile] Error:', error);
+    console.error('[Profile] Stack trace:', error.stack);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching user profile',
+      error: error.message
+    });
+  }
+});
+
 export default userRoute;
 
 
