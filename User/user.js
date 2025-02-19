@@ -172,6 +172,72 @@ userRoute.get('/profile', async (req, res) => {
   }
 });
 
+// Update Profile endpoint
+userRoute.post('/profile', async (req, res) => {
+  try {
+    console.log('[Update Profile] Request received:', req.body);
+    const { emailId, fullName, phoneNo } = req.body;
+
+    if (!emailId) {
+      console.log('[Update Profile] Validation failed: Missing email');
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide emailId'
+      });
+    }
+
+    let updateFields = [];
+    let updateValues = [];
+
+    if (fullName) {
+      updateFields.push('full_name = ?');
+      updateValues.push(fullName);
+    }
+
+    if (phoneNo) {
+      updateFields.push('phone_num = ?');
+      updateValues.push(phoneNo);
+    }
+
+    if (updateFields.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No fields provided for update'
+      });
+    }
+
+    updateValues.push(emailId);
+    const updateQuery = `UPDATE tbl_user SET ${updateFields.join(', ')} WHERE email = ?`;
+
+    console.log('[Update Profile] Executing update query:', updateQuery);
+    const [result] = await db.execute(updateQuery, updateValues);
+    console.log('[Update Profile] Database update result:', result);
+
+    if (result.affectedRows === 0) {
+      console.log('[Update Profile] No user found with email:', emailId);
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    console.log('[Update Profile] Profile updated successfully');
+    res.json({
+      success: true,
+      message: 'Profile updated successfully'
+    });
+
+  } catch (error) {
+    console.error('[Update Profile] Error:', error);
+    console.error('[Update Profile] Stack trace:', error.stack);
+    res.status(500).json({
+      success: false,
+      message: 'Error updating profile',
+      error: error.message
+    });
+  }
+});
+
 export default userRoute;
 
 
