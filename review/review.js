@@ -5,7 +5,7 @@ import Joi from "joi";
 const reviewRoute = express.Router();
 const reviewSchema = Joi.object({
     product_id: Joi.number().required(),
-    user_id: Joi.number().required(),
+    UserEmail:  Joi.string().required(),
     rating: Joi.number().min(1).max(5).required(),
     review_text: Joi.string().allow(null, ""),
     order_number: Joi.string().allow(null, ""),
@@ -18,12 +18,12 @@ reviewRoute.post("/", async (req, res) => {
     const { error } = reviewSchema.validate(req.body);
     if (error) return res.status(400).json({ message: error.details[0].message });
     try {
-        const { product_id, user_id, rating, review_text, order_number , review_title, order_date } = req.body;
+        const { product_id, UserEmail, rating, review_text, order_number , review_title, order_date } = req.body;
       const query = `
-           INSERT INTO tbl_productreviews (product_id, user_id, rating, review_text, order_number, review_title, order_date) 
+           INSERT INTO tbl_productreviews (product_id, UserEmail, rating, review_text, order_number, review_title, order_date) 
         VALUES (?, ?, ?, ?, ?, ?, ?)
       `;
-      await db.query(query, [product_id, user_id, rating, review_text, order_number , review_title, order_date ]);
+      await db.query(query, [product_id, UserEmail, rating, review_text, order_number , review_title, order_date ]);
       res.status(201).json({ message: "Review added successfully" });
     } catch (error) {
       res.status(500).json({ message: error.message });
@@ -31,14 +31,18 @@ reviewRoute.post("/", async (req, res) => {
   });
   reviewRoute.get("/", async (req, res) => {
     try {
-        const { page = 1, limit = 10 } = req.query;
+        const { page = 1, limit = 10,tab } = req.query;
         const offset = (page - 1) * limit;
         const [rows] = await db.query(
-            `SELECT r.*,r.review_id as id, u.FirstName as userName, p.ProductName,u.EmailID as emailAddress FROM tbl_productreviews r
-            LEFT JOIN tbl_user u ON r.User_id = u.UserID
+            `SELECT r.*,r.review_id as id, u.full_name as userName, p.ProductName,u.email as emailAddress FROM tbl_productreviews r
+            LEFT JOIN tbl_user u ON r.UserEmail = u.email
             LEFT JOIN tbl_products p ON r.Product_id = p.ProductID
-             LIMIT ? OFFSET ?`,
-            [parseInt(limit), parseInt(offset)]
+            WHERE r.status=?
+             LIMIT ? OFFSET ?
+             `
+             
+             ,
+            [tab,parseInt(limit), parseInt(offset)]
         );
         res.json({ page, limit, total: rows.length, result: rows });
     } catch (error) {
@@ -83,7 +87,7 @@ reviewRoute.post("/", async (req, res) => {
     });
     reviewRoute.get("/search", async (req, res) => {
         try {
-            const { searchTerm = '', page = 1, limit = 10 } = req.query;
+            const { searchTerm = '', page = 1, limit = 10 ,tab} = req.query;
             const offset = (page - 1) * limit;
     
             let query;
@@ -91,24 +95,26 @@ reviewRoute.post("/", async (req, res) => {
     
             if (searchTerm.trim() === '') {
                 query = `
-                    SELECT r.*, r.review_id as id, u.FirstName as userName, p.ProductName, u.EmailID as emailAddress 
+                    SELECT r.*, r.review_id as id, u.full_name as userName, p.ProductName, u.email as emailAddress 
                     FROM tbl_productreviews r
-                    LEFT JOIN tbl_user u ON r.User_id = u.UserID
+                    LEFT JOIN tbl_user u ON r.UserEmail = u.email
                     LEFT JOIN tbl_products p ON r.Product_id = p.ProductID
+                    WHERE r.status=?
                     LIMIT ? OFFSET ?
                 `;
-                queryParams = [parseInt(limit), parseInt(offset)];
+                queryParams = [tab,parseInt(limit), parseInt(offset)];
             } else {
                 query = `
-                    SELECT r.*, r.review_id as id, u.FirstName as userName, p.ProductName, u.EmailID as emailAddress 
+                    SELECT r.*, r.review_id as id, u.full_name as userName, p.ProductName, u.email as emailAddress 
                     FROM tbl_productreviews r
-                    LEFT JOIN tbl_user u ON r.User_id = u.UserID
+                    LEFT JOIN tbl_user u ON r.UserEmail = u.email
                     LEFT JOIN tbl_products p ON r.Product_id = p.ProductID
-                    WHERE r.review_text LIKE ? OR r.review_title LIKE ? OR p.ProductName LIKE ? OR u.FirstName LIKE ? OR u.EmailID LIKE ? 
+                    WHERE r.status=? AND r.review_text LIKE ? OR r.review_title LIKE ? OR p.ProductName LIKE ? OR u.full_name LIKE ? OR u.email LIKE ? 
+                  
                     LIMIT ? OFFSET ?
                 `;
                 const searchTerms = `%${searchTerm}%`;
-                queryParams = [searchTerms, searchTerms, searchTerms, searchTerms, searchTerms, parseInt(limit), parseInt(offset)];
+                queryParams = [tab,searchTerms, searchTerms, searchTerms, searchTerms, searchTerms, parseInt(limit), parseInt(offset)];
             }
     
             const [rows] = await db.query(query, queryParams);
