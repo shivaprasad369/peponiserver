@@ -156,8 +156,8 @@ cartRoute.get("/generate-id", (req, res) => {
 
         if (existingItems.length > 0) {
             const existingQty = existingItems[0].Qty;
-            const newQty = existingQty + cartItems.Qty;
-
+            // const newQty = existingQty + cartItems.Qty;
+            const newQty =cartItems.Qty;
             // Check if stock is sufficient
             if (newQty > stockAvailable) {
                 return res.status(400).json({ message: "Insufficient stock", stock: stockAvailable });

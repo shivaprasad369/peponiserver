@@ -18,7 +18,7 @@ productsRoute.get('/collection', async (req, res) => {
              p.ProductPrice, p.CashPrice, p.Image, p.ProductUrl FROM tbl_category c JOIN tbl_products
               p ON p.CategoryID =
              c.CategoryID JOIN tbl_productattribute pa ON pa.ProductID = p.ProductID 
-             WHERE c.CategoryName = ?`, [name]);
+             WHERE c.CategoryName = ? AND p.Status=1`, [name]);
 
         const [attribute] = await db.query(`
           SELECT 
@@ -194,7 +194,7 @@ productsRoute.post('/search', async (req, res) => {
                             p.CashPrice, p.CategoryID, p.SubCategoryIDone,p.ProductUrl
         `;
 
-        let conditions = [];
+        let conditions = ["p.Status = 1"];
         let params = [];
 
         // Filter by categories
@@ -295,6 +295,7 @@ productsRoute.post('/sub-search', async (req, res) => {
         console.log("Price Range received:", priceRange);
         console.log("Sorting received:", sortField, sortOrder);
 
+        let categoryFilter = Array.isArray(categories) ? categories : [];
         
         // If categories is empty, fetch CategoryID
         if (!categories || categories.length === 0) {
@@ -302,6 +303,7 @@ productsRoute.post('/sub-search', async (req, res) => {
                 'SELECT CategoryID FROM tbl_category WHERE CategoryName=? AND SubCategoryLevel=1', 
                 [name]
             );
+
             if (results.length > 0) {
                 categoryFilter = [results[0].CategoryID];
             }
@@ -309,7 +311,6 @@ productsRoute.post('/sub-search', async (req, res) => {
                 throw new Error(`No category found for the name "${name}"`);
             }
         }
-        let categoryFilter = Array.isArray(categories) ? categories : [];
 
         // Extract subcategory IDs
         const subCategoryFilter = subcategories 
@@ -327,7 +328,7 @@ productsRoute.post('/sub-search', async (req, res) => {
                             p.CashPrice, p.CategoryID, p.SubCategoryIDone, p.ProductUrl
         `;
 
-        let conditions = [];
+        let conditions = ["p.Status = 1"];
         let params = [];
 
         // Filter by categories

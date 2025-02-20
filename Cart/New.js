@@ -80,7 +80,7 @@ newCartRoute.get("/get-cart-by-number", async (req, res) => {
     if (!cartItems || !cartItems.CartNumber || !cartItems.ProductAttributeID || !cartItems.ProductID) {
         return res.status(400).json({ error: "CartNumber, ProductAttributeID, and ProductID are required." });
     }
-
+ console.log(cartItems)
     try {
         
         const decodedProductID = Buffer.from(cartItems.ProductID, "base64").toString("utf-8");
@@ -110,8 +110,9 @@ newCartRoute.get("/get-cart-by-number", async (req, res) => {
         const [existingItems] = await db.execute(checkQuery, checkParams);
 
         if (existingItems.length > 0) {
-            const existingQty = existingItems[0].Qty;
-            const newQty = existingQty + cartItems.Qty;
+            // const existingQty = existingItems[0].Qty;
+            // const newQty = existingQty + cartItems.Qty;
+            const newQty = cartItems.Qty;
 
             // Check if stock is sufficient
             if (newQty > stockAvailable) {

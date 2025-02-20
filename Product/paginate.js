@@ -36,7 +36,9 @@ paginateRoute.get("/", async (req, res) => {
           tbl_products p
         LEFT JOIN 
           tbl_category c ON p.CategoryID = c.CategoryID
+      
         ORDER BY p.ProductID
+
         LIMIT ? OFFSET ?;
       `;
 
@@ -62,7 +64,7 @@ paginateRoute.get("/", async (req, res) => {
           FROM tbl_productattribute pa
           LEFT JOIN attribute_values av ON pa.AttributeValueID = av.id
           LEFT JOIN attributes a ON av.attribute_id = a.id
-          WHERE pa.ProductID = ?
+          WHERE pa.ProductID = ? 
         `, [product.ProductID]);
 
         return {

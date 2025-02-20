@@ -12,12 +12,12 @@ featureRoute.get('/:id', async (req, res) => {
 
     try {
         // Query to fetch products not associated with the given FeaturedID
-        const products = await db.query(`
-            SELECT product.ProductID, product.ProductName, product.Image,features.FeaturedID 
+        const products = await db.query(` SELECT product.ProductID, product.ProductName, product.Image,features.FeaturedID 
             FROM tbl_products product
             LEFT JOIN tbl_featureproducts features 
                 ON product.ProductID = features.ProductID AND features.FeaturedID = ?
             WHERE features.ProductID IS NULL
+             ORDER BY fp.position ASC
         `, [id]);
 
         res.json({ data: products });
@@ -30,7 +30,9 @@ featureRoute.get('/features/:id', async (req, res) => {
     try {
         const features = await db.query(`SELECT p.ProductID,fp.FeaturedID, p.ProductName, p.Image FROM tbl_products p
             LEFT JOIN tbl_featureproducts fp ON p.ProductID = fp.ProductID
-            WHERE fp.Name = ?`, [req.params.id]);
+            WHERE fp.Name = ?
+            ORDER BY fp.position ASC
+            `, [req.params.id]);
         res.json({data:features});
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -45,7 +47,7 @@ featureRoute.post('/', async (req, res) => {
             });
         }
         const existingFeatureGroup = await db.query(
-            `SELECT * FROM tbl_featureproducts WHERE Name = ? AND ProductID = ? AND Status=1`,
+            `SELECT * FROM tbl_featureproducts WHERE Name = ? AND ProductID = ?`,
             [FeatureName, ProductID]
         );
         console.log(existingFeatureGroup[0]);
@@ -87,10 +89,23 @@ featureRoute.delete('/:id', async (req, res) => {
 
 featureRoute.get('/', async (req, res) => {
     try {
-        const features = await db.query(`SELECT ProductID, ProductName,Image FROM tbl_products WHERE Status=1`);
+        const features = await db.query(`SELECT ProductID, ProductName,Image FROM tbl_products WHERE Status=1   `);
         res.json({data:features});
     } catch (error) {
         res.status(500).json({ error: res.message });
     }
 });
+
+featureRoute.post('/reoder', async(req,res)=>{
+    const {id,position}=req.body;
+     try {
+    await db.query("UPDATE tbl_featureproducts SET position = ? WHERE ProductID = ?", [position, id])
+    res.json({ success: true, message: "Product order updated" })
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({ success: false, message: "Error updating product order" })
+  }
+})
+
+
 export default featureRoute;

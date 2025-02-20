@@ -22,56 +22,51 @@ homeRoute.get('/collection', async (req, res) => {
             return res.status(400).json({ error: "Collection is required" });
         }
 
-        const [data] = await db.query(`
-           SELECT p.ProductName,f.name, p.ProductID,p.ProductUrl,p.ProductPrice,p.CashPrice, p.CategoryID,c.CategoryName, p.Image, p.SubCategoryIDone, 
-                   av.value AS attributeValue, a.attribute_name AS AttributeName, 
-                   a.id AS aid, av.id AS attributeValuesId
+        const [data] = await db.query(
+            `SELECT 
+                p.ProductName, f.name, p.ProductID, p.ProductUrl, p.ProductPrice, 
+                p.CashPrice, p.CategoryID, c.CategoryName, p.Image, p.SubCategoryIDone, 
+                f.position,
+                GROUP_CONCAT(JSON_OBJECT(
+                    'AttributeName', a.attribute_name,
+                    'attributeValue', av.value,
+                    'aid', a.id,
+                    'attributeValuesId', av.id
+                )) AS attributeValues
             FROM tbl_featureproducts f
             JOIN tbl_products p ON f.ProductID = p.ProductID
             JOIN tbl_productattribute pa ON pa.ProductID = f.ProductID
-            JOIN tbl_category c ON p.CategoryID=c.CategoryID
+            JOIN tbl_category c ON p.CategoryID = c.CategoryID
             JOIN attribute_values av ON av.id = pa.AttributeValueID
             JOIN attributes a ON av.attribute_id = a.id
-            WHERE f.name = ? AND p.Status=1`, [collection]);
+            WHERE f.name = ? AND p.Status = 1
+            GROUP BY p.ProductID, f.position
+            ORDER BY f.position ASC;`,
+            [collection]
+        );
 
         // Transform data into the correct format
-        const filterData = data.reduce((acc, curr) => {
-            // Check if the product already exists in the accumulator
-            if (!acc[curr.ProductID]) {
-                acc[curr.ProductID] = {
-                    ProductID:Buffer.from(curr.ProductID.toString()).toString('base64'),
-                    ProductName: curr.ProductName,
-                    url:curr.ProductUrl,
-                    CategoryName:curr.CategoryName,
-                    Image: curr.Image,
-                    ProductPrice: curr.ProductPrice,
-                    CashPrice: curr.CashPrice,
-                  
-                    CategoryID:Buffer.from(curr.CategoryID.toString()).toString('base64'),
-                    SubCategoryIDone: curr.SubCategoryIDone,
-                    attributeValues: []
-                };
-            }
+        const filterData = data.map((item) => ({
+            ProductID: Buffer.from(item.ProductID.toString()).toString('base64'),
+            ProductName: item.ProductName,
+            url: item.ProductUrl,
+            position: item.position,
+            CategoryName: item.CategoryName,
+            Image: item.Image,
+            ProductPrice: item.ProductPrice,
+            CashPrice: item.CashPrice,
+            CategoryID: Buffer.from(item.CategoryID.toString()).toString('base64'),
+            SubCategoryIDone: item.SubCategoryIDone,
+            attributeValues: JSON.parse(`[${item.attributeValues}]`) // Parse attributes
+        }));
 
-            // Push attribute details into attributeValues array
-            acc[curr.ProductID].attributeValues.push({
-                AttributeName: curr.AttributeName,
-                attributeValue: curr.attributeValue,
-                aid: curr.aid,
-                attributeValuesId: curr.attributeValuesId
-            });
-
-            return acc;
-        }, {});
-        // console.log(filterData)
-        // Convert object to an array and send response
-        res.status(200).json(Object.values(filterData));
-
+        res.status(200).json(filterData);
     } catch (error) {
         console.error("Error fetching collection:", error);
         res.status(500).json({ error: error.message });
     }
 });
+
 homeRoute.get("/blogs", async (req, res) => {
     try {
         const [result] = await db.query("SELECT id,title,shortdesc,description,image,author,created_at,Status FROM blogs ORDER BY id DESC LIMIT 4");
@@ -458,8 +453,20 @@ homeRoute.get('/CatID',async(req,res)=>{
         }
 })
 
-
-
+homeRoute.get("/check", async (req, res) => {
+    try {
+      const { name } = req.query;
+      if (!name) return res.status(400).json({ error: "Category name is required" });
+  
+      // Use 'await' to get the result
+      const [result] = await db.query("SELECT * FROM tbl_category WHERE CategoryName = ?", [name]);
+  
+      return res.json({ exists: result.length > 0 });
+    } catch (error) {
+      return res.status(500).json({ error: error.message });
+    }
+  });
+      
 
 
 export default homeRoute;
