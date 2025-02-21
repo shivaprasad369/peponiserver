@@ -37,7 +37,7 @@ productRoute.post('/', upload.fields([{ name: 'productImage' }, { name: 'Product
             Stock :Stock  ,
             cashPrice,
             categoryId,
-            subCategoryId,
+            subCategoryId:subCategoryId ,
             subCategoryLv2Id,
             productDescription,
             attributeValue
@@ -52,7 +52,7 @@ productRoute.post('/', upload.fields([{ name: 'productImage' }, { name: 'Product
             const slug = await generateUniqueSlug(productName);
        const [result] = await db.query(insertProductQuery, [
             productName, metaTitle, metaDescription, metaKeyword, productPrice, discountPercentage, 
-            discountPrice, sellingPrice, cashPrice, categoryId, subCategoryId, subCategoryLv2Id, productDescription, productImagePath,Stock,slug
+            discountPrice, sellingPrice, cashPrice, categoryId, subCategoryId || 0, subCategoryLv2Id, productDescription, productImagePath,Stock,slug
         ]);
             if (result.affectedRows === 0) {
                 return res.status(500).json({ message: 'Error inserting product', error: err });
