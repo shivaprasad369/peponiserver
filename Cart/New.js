@@ -293,63 +293,87 @@ newCartRoute.put("/update-quantity", async (req, res) => {
 
   newCartRoute.put('/update-cart-user', async (req, res) => {
     const { cartNumber, email, user } = req.body;
-    
+
     if (!cartNumber || !email) {
         return res.status(400).json({ message: "Cart number and email are required." });
     }
 
+    const connection = await db.getConnection();
+
     try {
-        const [getUserData] = await db.execute(
-            `SELECT * FROM tbl_tempcart WHERE CartNumber = ?`, 
+        await connection.beginTransaction();
+
+        // Fetch all cart items in one query
+        const [cartItems] = await connection.execute(
+            `SELECT ProductID, Qty, ProductAttributeID, Price 
+             FROM tbl_tempcart 
+             WHERE CartNumber = ?`, 
             [cartNumber]
         );
 
-        if (getUserData.length === 0) {
+        if (cartItems.length === 0) {
+            await connection.rollback();
             return res.status(404).json({ message: "No items found in the cart." });
         }
 
-        for (const cart of getUserData) {
-            const { ProductID, Qty,ProductAttributeID,Price } = cart;
-            const [existingCartItem] = await db.execute(
-                `SELECT * FROM tbl_finalcart WHERE ProductID = ? AND UserEmail = ?`, 
-                [ProductID, email]
-            );
+        // Fetch all existing items in final cart for this user in one query
+        const productIDs = cartItems.map(item => item.ProductID);
+        const [existingCartItems] = await connection.execute(
+            `SELECT ProductID, Qty FROM tbl_finalcart WHERE UserEmail = ? AND ProductID IN (?)`,
+            [email, productIDs]
+        );
 
-            let result; 
+        // Convert existing items into a map for quick lookup
+        const existingCartMap = new Map(existingCartItems.map(item => [item.ProductID, item.Qty]));
 
-            if (existingCartItem.length > 0) {
-               
-                const newQty = Qty;
-                [result] = await db.execute(
-                    `UPDATE tbl_finalcart 
-                     SET Qty = ? 
-                     WHERE UserEmail = ? AND ProductID = ? `,
-                    [newQty, email, ProductID]
+        const updatePromises = [];
+        const insertPromises = [];
+        const deletePromises = [];
+
+        for (const cart of cartItems) {
+            const { ProductID, Qty, ProductAttributeID, Price } = cart;
+            const newItemTotal = Qty * Number(Price);
+
+            if (existingCartMap.has(ProductID)) {
+                // Update existing item
+                updatePromises.push(
+                    connection.execute(
+                        `UPDATE tbl_finalcart SET Qty = ? WHERE UserEmail = ? AND ProductID = ?`,
+                        [Qty, email, ProductID]
+                    )
                 );
             } else {
-              const newItemTotal = Qty * Number(Price);
-                [result] = await db.execute(
-                    `INSERT INTO tbl_finalcart (UserEmail, ProductID,  
-                    Price, ProductAttributeId,ItemTotal,Qty) 
-                VALUES (?, ?, ?, ?, ?,?)`
-                    ,
-                    [ email, ProductID,Price,ProductAttributeID||null,newItemTotal,Qty]
+                // Insert new item
+                insertPromises.push(
+                    connection.execute(
+                        `INSERT INTO tbl_finalcart (UserEmail, ProductID, Price, ProductAttributeId, ItemTotal, Qty) 
+                         VALUES (?, ?, ?, ?, ?, ?)`,
+                        [email, ProductID, Price, ProductAttributeID || null, newItemTotal, Qty]
+                    )
                 );
             }
-            if (result.affectedRows > 0) {
-                await db.execute(
-                    `DELETE FROM tbl_tempcart 
-                     WHERE ProductID = ? AND CartNumber = ? AND UserID = ?`,
+
+            // Delete from temporary cart
+            deletePromises.push(
+                connection.execute(
+                    `DELETE FROM tbl_tempcart WHERE ProductID = ? AND CartNumber = ? AND UserID = ?`,
                     [ProductID, cartNumber, 1]
-                );
-            }
+                )
+            );
         }
 
+        // Execute all update, insert, and delete queries in parallel
+        await Promise.all([...updatePromises, ...insertPromises, ...deletePromises]);
+
+        await connection.commit();
         return res.status(200).json({ message: "Cart updated successfully." });
 
     } catch (error) {
+        await connection.rollback();
         console.error("Error updating cart:", error);
         return res.status(500).json({ message: "Error updating cart", error });
+    } finally {
+        connection.release();
     }
 });
 
