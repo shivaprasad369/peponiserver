@@ -72,96 +72,105 @@ paymentRoute.post('/create-payment-intent', async (req, res) => {
 
  
 
-  paymentRoute.post('/store-payment', async (req, res) => {
-      const connection = await db.getConnection(); // Get a DB connection
-      await connection.beginTransaction(); // Start transaction
+  paymentRoute.post("/store-payment", async (req, res) => {
+    const connection = await db.getConnection();
+    await connection.beginTransaction();
   
-      try {
-          const { email, paymentIntentId } = req.body;
-          const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+    try {
+      const { email, paymentIntentId } = req.body;
   
-          if (paymentIntent.status !== 'succeeded') {
-              return res.status(400).json({ message: 'Payment was not successful' });
-          }
-  
-          // Fetch order details
-          const [result] = await connection.query(
-              'SELECT FinalMasterId, OrderNumber FROM tbl_finalmaster WHERE UserEmail=? AND stripeid IS NULL FOR UPDATE',
-              [email]
-          )
-  
-          if (result.length === 0) {
-              return res.status(400).json({ message: 'No order found for this user' });
-          }
-  
-          const { FinalMasterId, OrderNumber } = result[0];
-  
-          // Update tbl_finalmaster with payment details
-          const [updateMaster] = await connection.query(
-              'UPDATE tbl_finalmaster SET stripeid=?, OrderDate=?, OrderStatus=? WHERE FinalMasterId=?',
-              [paymentIntent.id, new Date(), 0, FinalMasterId]
-          );
-  
-          if (updateMaster.affectedRows === 0) {
-              throw new Error('Failed to update order details');
-          }
-  
-          // Insert into tbl_OrderStatusHistory
-          await connection.query(
-              `INSERT INTO tbl_OrderStatusHistory (FinalMasterId, OrderNo, OrderUpdatedByUserType, OrderUpdatedByUser, OrderRemark, OrderStatus, OrderStatusDate) 
-               VALUES (?, ?, ?, ?, ?, ?, ?)`,
-              [FinalMasterId, OrderNumber, 1, email, 'Payment successful, order placed', 0, new Date()]
-          );
-  
-          // Fetch cart items
-          const [getOrder] = await connection.query(
-              `SELECT c.ProductID, c.ProductAttributeId, c.Price, c.Qty, c.ItemTotal, p.ProductName
-               FROM tbl_finalcart c 
-               JOIN tbl_products p ON c.ProductID = p.ProductID 
-               WHERE c.UserEmail=?`,
-              [email]
-          );
-  
-          if (getOrder.length === 0) {
-              throw new Error('No items found in cart');
-          }
-  
-          // Insert into tbl_order and update stock
-          for (const data of getOrder) {
-              await connection.query(
-                  `INSERT INTO tbl_order (UserEmail, ProductID, ProductAttributeId, Price, Qty, ItemTotal, OrderNumber, OrderDate)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-                  [email, data.ProductID, data.ProductAttributeId || null, data.Price, data.Qty, data.ItemTotal || null, OrderNumber, new Date()]
-              );
-  
-              await connection.query(
-                  `UPDATE tbl_products SET Stock = Stock - ? WHERE ProductID = ?`,
-                  [data.Qty, data.ProductID]
-              );
-          }
-  
-          // Send Order Confirmation Email
-          await sendOrderConfirmationEmail(email, getOrder, OrderNumber);
-  
-          // Delete items from cart
-          const [deleteCart] = await connection.query('DELETE FROM tbl_finalcart WHERE UserEmail=?', [email]);
-  
-          if (deleteCart.affectedRows === 0) {
-              throw new Error('Failed to delete cart items');
-          }
-  
-          await connection.commit(); // Commit transaction
-  
-          return res.status(200).json({ message: 'Payment successful, order placed, status updated, email sent' });
-  
-      } catch (error) {
-          await connection.rollback(); // Rollback transaction in case of an error
-          console.error("Error in store-payment:", error);
-          return res.status(500).json({ message: 'Internal server error', error: error.message });
-      } finally {
-          connection.release(); // Release connection
+      // ✅ Retrieve Payment Intent from Stripe
+      const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+      if (paymentIntent.status !== "succeeded") {
+        return res.status(400).json({ message: "Payment was not successful" });
       }
+  
+      // ✅ Fetch Order Details (FOR UPDATE to prevent concurrent modifications)
+      const [orderResult] = await connection.query(
+        `SELECT FinalMasterId, OrderNumber 
+         FROM tbl_finalmaster 
+         WHERE UserEmail=? AND stripeid IS NULL 
+         FOR UPDATE`,
+        [email]
+      );
+  
+      if (orderResult.length === 0) {
+        return res.status(400).json({ message: "No order found for this user" });
+      }
+  
+      const { FinalMasterId, OrderNumber } = orderResult[0];
+  
+      // ✅ Update Order Details in `tbl_finalmaster`
+      const [updateMaster] = await connection.query(
+        `UPDATE tbl_finalmaster 
+         SET stripeid=?, OrderDate=?, OrderStatus=? 
+         WHERE FinalMasterId=?`,
+        [paymentIntent.id, new Date(), 0, FinalMasterId]
+      );
+  
+      if (updateMaster.affectedRows === 0) throw new Error("Failed to update order details");
+  
+      // ✅ Log Order Status in `tbl_OrderStatusHistory`
+      await connection.query(
+        `INSERT INTO tbl_OrderStatusHistory 
+         (FinalMasterId, OrderNo, OrderUpdatedByUserType, OrderUpdatedByUser, OrderRemark, OrderStatus, OrderStatusDate) 
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [FinalMasterId, OrderNumber, 1, email, "Payment successful, order placed", 0, new Date()]
+      );
+  
+      // ✅ Fetch Cart Items for the Order
+      const [cartItems] = await connection.query(
+        `SELECT c.ProductID, c.ProductAttributeId, c.Price, c.Qty, c.ItemTotal, p.ProductName 
+         FROM tbl_finalcart c 
+         JOIN tbl_products p ON c.ProductID = p.ProductID 
+         WHERE c.UserEmail=?`,
+        [email]
+      );
+  
+      if (cartItems.length === 0) throw new Error("No items found in cart");
+  
+      // ✅ Insert Items into `tbl_order` and Update Stock
+      for (const item of cartItems) {
+        await connection.query(
+          `INSERT INTO tbl_order 
+           (UserEmail, ProductID, ProductAttributeId, Price, Qty, ItemTotal, OrderNumber, OrderDate) 
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          [email, item.ProductID, item.ProductAttributeId || null, item.Price, item.Qty, item.ItemTotal || null, OrderNumber, new Date()]
+        );
+  
+        await connection.query(
+          `UPDATE tbl_products 
+           SET Stock = Stock - ? 
+           WHERE ProductID = ?`,
+          [item.Qty, item.ProductID]
+        );
+      }
+  
+      // ✅ Delete Cart Items After Order is Confirmed
+      const [deleteCart] = await connection.query(
+        `DELETE FROM tbl_finalcart WHERE UserEmail=?`,
+        [email]
+      );
+  
+      if (deleteCart.affectedRows === 0) throw new Error("Failed to delete cart items");
+  
+      // ✅ Commit Transaction
+      await connection.commit();
+  
+      // ✅ Send Order Confirmation Email (after successful transaction)
+      await sendOrderConfirmationEmail(email, cartItems, OrderNumber);
+  
+      return res.status(200).json({ message: "Payment successful, order placed, status updated, email sent" });
+  
+    } catch (error) {
+      await connection.rollback();
+      console.error("Error in store-payment:", error);
+      return res.status(500).json({ message: "Internal server error", error: error.message });
+    } finally {
+      connection.release();
+    }
   });
+  
   
   async function sendOrderConfirmationEmail(userEmail, orderItems, orderNumber) {
  const transporter = nodemailer.createTransport({
