@@ -17,7 +17,7 @@ featureRoute.get('/:id', async (req, res) => {
             LEFT JOIN tbl_featureproducts features 
                 ON product.ProductID = features.ProductID AND features.FeaturedID = ?
             WHERE features.ProductID IS NULL
-             ORDER BY fp.position ASC
+          
         `, [id]);
 
         res.json({ data: products });
