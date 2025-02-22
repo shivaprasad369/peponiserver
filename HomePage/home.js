@@ -108,7 +108,6 @@ homeRoute.post("/newletter", async (req, res) => {
 
   homeRoute.get('/attribute-category', async (req, res) => {
     try {
-        // Optimized SQL Query
         const query = `
             SELECT 
                 c.CategoryID, c.CategoryName,
@@ -132,11 +131,9 @@ homeRoute.post("/newletter", async (req, res) => {
             });
         }
 
-        // Using Map for efficient structuring
         const filterData = new Map();
 
         result.forEach(item => {
-            // Get or create category
             if (!filterData.has(item.CategoryID)) {
                 filterData.set(item.CategoryID, {
                     CategoryID: item.CategoryID,
@@ -146,33 +143,33 @@ homeRoute.post("/newletter", async (req, res) => {
             }
             const category = filterData.get(item.CategoryID);
 
-            // Get or create subcategory
-            if (!category.Subcategories.has(item.SubcategoryID)) {
-                category.Subcategories.set(item.SubcategoryID, {
-                    SubcategoryID: item.SubcategoryID,
-                    SubcategoryName: item.SubcategoryName,
-                    Attributes: new Map()
-                });
-            }
-            const subcategory = category.Subcategories.get(item.SubcategoryID);
+            // **Check if SubcategoryID and SubcategoryName are valid before adding**
+            if (item.SubcategoryID !== null && item.SubcategoryName !== null) {
+                if (!category.Subcategories.has(item.SubcategoryID)) {
+                    category.Subcategories.set(item.SubcategoryID, {
+                        SubcategoryID: item.SubcategoryID,
+                        SubcategoryName: item.SubcategoryName,
+                        Attributes: new Map()
+                    });
+                }
+                const subcategory = category.Subcategories.get(item.SubcategoryID);
 
-            // Get or create attribute
-            if (!subcategory.Attributes.has(item.attribute_name)) {
-                subcategory.Attributes.set(item.attribute_name, {
-                    AttributeName: item.attribute_name,
-                    Acid: item.Acid,
-                    Ascid: item.Ascid,
-                    AttributeValues: new Set()
-                });
-            }
-            const attribute = subcategory.Attributes.get(item.attribute_name);
+                if (!subcategory.Attributes.has(item.attribute_name)) {
+                    subcategory.Attributes.set(item.attribute_name, {
+                        AttributeName: item.attribute_name,
+                        Acid: item.Acid,
+                        Ascid: item.Ascid,
+                        AttributeValues: new Set()
+                    });
+                }
+                const attribute = subcategory.Attributes.get(item.attribute_name);
 
-            // Add attribute value
-            if (item.value) {
-                attribute.AttributeValues.add({
-                    Value: item.value.trim(),
-                    AttributeValueID: item.AttributeValueID
-                });
+                if (item.value) {
+                    attribute.AttributeValues.add({
+                        Value: item.value.trim(),
+                        AttributeValueID: item.AttributeValueID
+                    });
+                }
             }
         });
 
@@ -218,6 +215,7 @@ homeRoute.post("/newletter", async (req, res) => {
         });
     }
 });
+
 homeRoute.get("/attri/attributess", async (req, res) => {
     const [result] = await db.query(`
         SELECT a.attribute_name, a.id, av.value ,av.id as valueId
