@@ -170,15 +170,19 @@ userRoute.post('/profile', upload.single('profilePicture'), async (req, res) => 
 
       // Handle profile picture update
       let newImage = existingProfile[0].image_url || "";
-      if (req.file) {
-          const oldImagePath = path.join(__dirname, '..', existingProfile[0].image_url);
-          if (existingProfile[0].image_url && fs.existsSync(oldImagePath)) {
-              fs.unlinkSync(oldImagePath); // Delete old image
-          }
-          newImage = `uploads/${req.file.filename}`;
-          updates.push('image_url = ?');
-          values.push(newImage);
-      }
+
+if (req.file) {
+    const oldImagePath = existingProfile[0].image_url ? path.join(__dirname, '..', existingProfile[0].image_url) : null;
+
+    if (oldImagePath && fs.existsSync(oldImagePath)) {
+        fs.unlinkSync(oldImagePath); // Delete old image
+    }
+
+    newImage = path.join("uploads", req.file.filename); // Corrected path format
+    updates.push('image_url = ?');
+    values.push(newImage);
+}
+
 
       // If no fields are updated
       if (updates.length === 0) {
