@@ -169,7 +169,7 @@ userRoute.post('/profile', upload.single('profilePicture'), async (req, res) => 
       }
 
       // Handle profile picture update
-      let newImage = existingProfile[0].image_url;
+      let newImage = existingProfile[0].image_url || "";
       if (req.file) {
           const oldImagePath = path.join(__dirname, '..', existingProfile[0].image_url);
           if (existingProfile[0].image_url && fs.existsSync(oldImagePath)) {
