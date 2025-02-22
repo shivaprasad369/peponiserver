@@ -7,12 +7,13 @@ paginateRoute.get("/", async (req, res) => {
       // Extract pagination parameters from the request query
       const page = parseInt(req.query.page, 10) || 1; // Default to page 1
       const pageSize = parseInt(req.query.pageSize, 10) || 10; // Default to 10 items per page
-  
+      const searchTerm = req.query.searchTerm;
       // Calculate the OFFSET and LIMIT for pagination
       const offset = (page - 1) * pageSize;
-  
+      let query='',
+      queryParams = [ ];
       // Query to fetch paginated products
-      const query = `
+     query = `
         SELECT DISTINCT
           p.ProductID,
           p.ProductName,

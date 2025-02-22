@@ -88,7 +88,7 @@ newCartRoute.get("/get-cart-by-number", async (req, res) => {
             "SELECT Stock FROM tbl_products WHERE ProductID = ?",
             [decodedProductID]
         );
-
+        console
         if (stockResult.length === 0) {
             return res.status(404).json({ error: "Product not found." });
         }
