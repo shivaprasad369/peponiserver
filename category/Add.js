@@ -43,12 +43,71 @@ try{
 });
 
 categoryRoute.get("/", async (req, res) => {
-    const [result] = await db.query("SELECT CategoryID,Image, CategoryName,Status FROM tbl_category WHERE ParentCategoryID IS NULL");
+    const [result] = await db.query(`SELECT CategoryID,Image, CategoryName,Status
+         FROM tbl_category WHERE ParentCategoryID IS NULL`);
     if(result.length === 0){
         return res.status(400).json({ message: "No categories found" });
     }   
     res.status(200).json({ message: "Category fetched successfully", result: result });
 });
+categoryRoute.get("/pagination", async (req, res) => {
+    try {
+        const page = parseInt(req.query.page, 10) || 1; // Default to page 1
+        const pageSize = parseInt(req.query.pageSize, 10) || 10; // Default to 10 items per page
+        const searchTerm = req.query.search ? `%${req.query.search}%` : null;
+
+        const offset = (page - 1) * pageSize;
+
+        let query = `
+            SELECT CategoryID, Image, CategoryName, Status 
+            FROM tbl_category 
+            WHERE ParentCategoryID IS NULL
+        `;
+
+        let queryParams = [];
+
+        if (searchTerm) {
+            query += ` AND CategoryName LIKE ? `;
+            queryParams.push(searchTerm);
+        }
+
+        query += ` ORDER BY CategoryID DESC LIMIT ? OFFSET ?`;
+        queryParams.push(pageSize, offset);
+
+        const [categories] = await db.query(query, queryParams);
+
+        // if (categories.length === 0) {
+        //     return res.status(404).json({ message: "No categories found" });
+        // }
+
+        // Get total count for pagination
+        let countQuery = `SELECT COUNT(CategoryID) AS total FROM tbl_category WHERE ParentCategoryID IS NULL`;
+        let countParams = [];
+
+        if (searchTerm) {
+            countQuery += ` AND CategoryName LIKE ?`;
+            countParams.push(searchTerm);
+        }
+
+        const [countResult] = await db.query(countQuery, countParams);
+        const totalCategories = countResult[0].total;
+        const totalPages = Math.ceil(totalCategories / pageSize);
+
+        res.status(200).json({
+            message: "Categories fetched successfully",
+            categories,
+            totalCategories,
+            totalPages,
+            currentPage: page,
+            pageSize
+        });
+
+    } catch (error) {
+        console.error("Error fetching categories:", error);
+        res.status(500).json({ message: "Internal server error", error: error.message });
+    }
+});
+
 categoryRoute.get("/:id", async (req, res) => {
     const { id } =req.params;
     console.log(id)

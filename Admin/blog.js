@@ -23,17 +23,96 @@ async function generateUniqueSlug(title) {
   
     return slug;
   }
+// blogRoute.get("/", async (req, res) => {
+//     try {
+//         const [result] = await db.query("SELECT id,title,shortdesc,description,image,author,created_at,Status FROM blogs ORDER BY id DESC");
+//         if(result.length === 0){
+//             return res.status(404).json({ message: "No blogs found" });
+//         }
+//         res.status(200).json({ message: "Blog fetched successfully", result: result });
+//     } catch (error) {
+//         res.status(500).json({ message: "Internal server error", error: error });
+//     }
+// });
+
 blogRoute.get("/", async (req, res) => {
     try {
-        const [result] = await db.query("SELECT id,title,shortdesc,description,image,author,created_at,Status FROM blogs ORDER BY id DESC");
-        if(result.length === 0){
+        // Extract query parameters
+    
+        const page = parseInt(req.query.page, 10) || 1; // Default: page 1
+        const pageSize = parseInt(req.query.pageSize, 10) || 10; // Default: 10 blogs per page
+        const searchTerm = req.query.searchTerm?.trim() || ""; // Handle empty search terms
+
+        // Calculate offset
+        const offset = (page - 1) * pageSize;
+
+        let query = "";
+        let queryParams = [];
+        let countQuery = "SELECT COUNT(id) as total FROM blogs";
+        let countParams = [];
+
+        if (!searchTerm) {
+            // Fetch all blogs when no search term is provided
+            query = `
+                SELECT id, title, shortdesc, description, image, author, created_at, Status
+                FROM blogs
+                ORDER BY id DESC
+                LIMIT ? OFFSET ?;
+            `;
+            queryParams = [pageSize, offset];
+        } else {
+            // Fetch blogs based on search term
+            query = `
+                SELECT id, title, shortdesc, description, image, author, created_at, Status
+                FROM blogs
+                WHERE title LIKE ? OR shortdesc LIKE ? OR author LIKE ?
+                ORDER BY id DESC
+                LIMIT ? OFFSET ?;
+            `;
+
+            const searchParam = `%${searchTerm}%`;
+            queryParams = [searchParam, searchParam, searchParam, pageSize, offset];
+
+            // Adjust COUNT query for filtered results
+            countQuery = `
+                SELECT COUNT(id) as total
+                FROM blogs
+                WHERE title LIKE ? OR shortdesc LIKE ? OR author LIKE ?;
+            `;
+            countParams = [searchParam, searchParam, searchParam];
+        }
+
+        // Execute main blog query
+        const [result] = await db.query(query, queryParams);
+
+        // Execute count query
+        const [countResult] = await db.query(countQuery, countParams.length ? countParams : []);
+
+        if (result.length === 0) {
             return res.status(404).json({ message: "No blogs found" });
         }
-        res.status(200).json({ message: "Blog fetched successfully", result: result });
+
+        // Calculate total pages
+        const totalBlogs = countResult[0].total;
+        const totalPages = Math.ceil(totalBlogs / pageSize);
+
+        // Respond with paginated blogs
+        res.status(200).json({
+            message: "Blogs fetched successfully",
+            blogs: result,
+            totalBlogs,
+            totalPages,
+            currentPage: page,
+            pageSize,
+        });
+
     } catch (error) {
-        res.status(500).json({ message: "Internal server error", error: error });
+        console.error("Error fetching blogs:", error);
+        res.status(500).json({ message: "Internal server error", error: error.message || error });
     }
 });
+
+
 blogRoute.get("/:id", async (req, res) => {
     const { id } = req.params;
     try {
