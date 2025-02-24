@@ -88,7 +88,6 @@ contactRoute.get('/', async (req, res) => {
             // ✅ Query for when searchTerm is provided
             query = `SELECT * FROM tbl_contact 
                      WHERE FullName LIKE ? OR Email LIKE ? OR Message LIKE ? 
-                     ORDER BY CreatedAt DESC 
                      LIMIT ? OFFSET ?`;
             params = [`%${searchTerm}%`, `%${searchTerm}%`, `%${searchTerm}%`, pageSize, offset];
 
