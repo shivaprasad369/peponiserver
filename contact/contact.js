@@ -65,26 +65,28 @@ contactRoute.post("/", async (req, res) => {
 
 
 
-contactRoute.get('/', async (req, res) => {
+contactRoute.get("/", async (req, res) => {
     try {
         const page = parseInt(req.query.page, 10) || 1; // Default to page 1
         const pageSize = parseInt(req.query.pageSize, 10) || 10; // Default to 10 items per page
         const searchTerm = req.query.searchTerm?.trim() || ""; // Handle empty search terms
-        // page = parseInt(page);
-        // pageSize = parseInt(pageSize);
-        // searchTerm = searchTerm.trim();
 
         // Calculate offset for pagination
         const offset = (page - 1) * pageSize;
 
         // Construct base query
-        let query = `SELECT * FROM tbl_contact WHERE 1`;
+        let query = `SELECT * FROM tbl_contact`;
+        let countQuery = `SELECT COUNT(*) AS total FROM tbl_contact`;
         let params = [];
+        let countParams = [];
 
         // Apply search filter (if provided)
         if (searchTerm !== "") {
-            query += ` AND (FullName LIKE ? OR Email LIKE ? OR Message LIKE ?)`;
+            const searchCondition = ` WHERE FullName LIKE ? OR Email LIKE ? OR Message LIKE ?`;
+            query += searchCondition;
+            countQuery += searchCondition;
             params.push(`%${searchTerm}%`, `%${searchTerm}%`, `%${searchTerm}%`);
+            countParams.push(`%${searchTerm}%`, `%${searchTerm}%`, `%${searchTerm}%`);
         }
 
         // Add pagination
@@ -95,11 +97,7 @@ contactRoute.get('/', async (req, res) => {
         const [contacts] = await db.execute(query, params);
 
         // Get total count for pagination
-        const [totalRows] = await db.execute(
-            `SELECT COUNT(*) AS total FROM tbl_contact WHERE 1 ${searchTerm ? "AND (FullName LIKE ? OR Email LIKE ? OR Message LIKE ?)" : ""}`,
-            searchTerm ? [`%${searchTerm}%`, `%${searchTerm}%`, `%${searchTerm}%`] : []
-        );
-
+        const [totalRows] = await db.execute(countQuery, countParams);
         const totalContacts = totalRows[0].total;
 
         res.status(200).json({
@@ -116,6 +114,7 @@ contactRoute.get('/', async (req, res) => {
         res.status(500).json({ message: "Server error." });
     }
 });
+
 
 contactRoute.delete("/:id", async (req, res) => {
     try {
