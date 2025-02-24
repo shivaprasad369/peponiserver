@@ -434,8 +434,8 @@ productsRoute.post('/sub-search', async (req, res) => {
         let categoryFilter = categories && Array.isArray(categories) ? categories : [];
 
         // Fetch CategoryID from name if provided
-        if (name) {
-            categoryFilter.push(`(SELECT CategoryID FROM tbl_category WHERE CategoryName = ? AND SubCategoryLevel = 1)`);
+        if (name !== '') {
+            categoryFilter.push(`(SELECT CategoryID FROM tbl_category WHERE CategoryName = ? AND SubCategoryLevel=1)`);
             params.push(name);
         }
 
