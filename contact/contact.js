@@ -97,7 +97,6 @@ contactRoute.get('/', async (req, res) => {
         } else {
             // ✅ Query for when searchTerm is empty
             query = `SELECT * FROM tbl_contact 
-                     ORDER BY CreatedAt DESC 
                      LIMIT ? OFFSET ?`;
             params = [pageSize, offset];
 
