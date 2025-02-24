@@ -464,22 +464,25 @@ homeRoute.get('/dashboard/products/:id', async (req, res) => {
     try {
         // Fetch order details from the database
         const [results] = await db.query(
-            `SELECT o.OrderNumber, 
-                    o.OrderDate, 
-                    fm.*, 
-                    p.ProductID, 
-                    p.ProductName, 
-                    p.Image AS ProductImages,
-                    o.Qty AS Quantities, 
-                    o.Price, 
-                    o.ItemTotal,
-                    h.*
-             FROM tbl_order o 
-             JOIN tbl_finalmaster fm ON o.OrderNumber COLLATE utf8mb4_unicode_ci = fm.OrderNumber 
-             LEFT JOIN tbl_products p ON p.ProductID = o.ProductID
-             LEFT JOIN tbl_OrderStatusHistory h ON h.OrderNo = fm.OrderNumber
-            
-             WHERE fm.OrderNumber = ?
+            `SELECT 
+    o.OrderNumber, 
+    o.OrderDate, 
+    fm.*, 
+    p.ProductID, 
+    p.ProductName, 
+    p.Image AS ProductImages,
+    o.Qty AS Quantities, 
+    o.Price, 
+    o.ItemTotal,
+    h.*
+FROM tbl_order o 
+JOIN tbl_finalmaster fm 
+    ON o.OrderNumber COLLATE utf8mb4_unicode_ci = fm.OrderNumber COLLATE utf8mb4_unicode_ci  -- Explicit collation match
+LEFT JOIN tbl_products p 
+    ON p.ProductID COLLATE utf8mb4_unicode_ci = o.ProductID COLLATE utf8mb4_unicode_ci -- Explicit collation match
+LEFT JOIN tbl_OrderStatusHistory h 
+    ON h.OrderNo COLLATE utf8mb4_unicode_ci = fm.OrderNumber COLLATE utf8mb4_unicode_ci -- Explicit collation match
+WHERE fm.OrderNumber COLLATE utf8mb4_unicode_ci =?
              `,
             [id]
         );
