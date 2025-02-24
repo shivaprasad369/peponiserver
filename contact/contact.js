@@ -76,7 +76,7 @@ contactRoute.get("/", async (req, res) => {
             return res.status(400).json({ message: "Invalid pagination values" });
         }
 
-        const offset = page;
+        const offset = (Number(page) - 1) * Number(pageSize);
 
         let query = `SELECT * FROM tbl_contact`;
         let countQuery = `SELECT COUNT(*) AS total FROM tbl_contact`;
