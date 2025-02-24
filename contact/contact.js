@@ -67,39 +67,49 @@ contactRoute.post("/", async (req, res) => {
 
 contactRoute.get('/', async (req, res) => {
     try {
-        const page = Number(req.query.page); // Default to page 1
-        const pageSize = Number(req.query.pageSize); // Default to 10 items per page
+        const page = Number(req.query.page) || 1; // Default to page 1
+        const pageSize = parseInt(req.query.pageSize) || 10; // Default to 10 items per page
         const searchTerm = req.query.searchTerm?.trim() || ""; // Handle empty search terms
-        // page = parseInt(page);
-        // pageSize = parseInt(pageSize);
-        // searchTerm = searchTerm.trim();
 
-        // Calculate offset for pagination
-        const offset = (page - 1) * pageSize;
-        console.log(pageSize,offset,page)
-        // Construct base query
-        let query = `SELECT * FROM tbl_contact `;
-        let params = [];
-
-        // Apply search filter (if provided)
-        if (searchTerm !== "") {
-            query += `WHERE (FullName LIKE ? OR Email LIKE ? OR Message LIKE ?)`;
-            params.push(`%${searchTerm}%`, `%${searchTerm}%`, `%${searchTerm}%`);
+        // Validate pagination inputs
+        if (isNaN(page) || isNaN(pageSize) || page < 1 || pageSize < 1) {
+            return res.status(400).json({ message: "Invalid pagination values" });
         }
 
-        // Add pagination
-        query += ` ORDER BY CreatedAt DESC LIMIT ? OFFSET ?`;
-        params.push(pageSize, pageSize);
+        const offset = (page - 1) * pageSize;
+        console.log(pageSize, offset, page);
 
-        // Fetch data
+        let query;
+        let countQuery;
+        let params = [];
+        let countParams = [];
+
+        if (searchTerm !== "") {
+            // ✅ Query for when searchTerm is provided
+            query = `SELECT * FROM tbl_contact 
+                     WHERE FullName LIKE ? OR Email LIKE ? OR Message LIKE ? 
+                     ORDER BY CreatedAt DESC 
+                     LIMIT ? OFFSET ?`;
+            params = [`%${searchTerm}%`, `%${searchTerm}%`, `%${searchTerm}%`, pageSize, offset];
+
+            countQuery = `SELECT COUNT(*) AS total FROM tbl_contact 
+                          WHERE FullName LIKE ? OR Email LIKE ? OR Message LIKE ?`;
+            countParams = [`%${searchTerm}%`, `%${searchTerm}%`, `%${searchTerm}%`];
+        } else {
+            // ✅ Query for when searchTerm is empty
+            query = `SELECT * FROM tbl_contact 
+                     ORDER BY CreatedAt DESC 
+                     LIMIT ? OFFSET ?`;
+            params = [pageSize, offset];
+
+            countQuery = `SELECT COUNT(*) AS total FROM tbl_contact`;
+        }
+
+        // Fetch contacts
         const [contacts] = await db.execute(query, params);
 
         // Get total count for pagination
-        const [totalRows] = await db.execute(
-            `SELECT COUNT(*) AS total FROM tbl_contact WHERE 1 ${searchTerm ? "AND (FullName LIKE ? OR Email LIKE ? OR Message LIKE ?)" : ""}`,
-            searchTerm ? [`%${searchTerm}%`, `%${searchTerm}%`, `%${searchTerm}%`] : []
-        );
-
+        const [totalRows] = await db.execute(countQuery, countParams);
         const totalContacts = totalRows[0].total;
 
         res.status(200).json({
