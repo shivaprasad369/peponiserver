@@ -477,7 +477,7 @@ homeRoute.get('/dashboard/products/:id', async (req, res) => {
              FROM tbl_order o 
              JOIN tbl_finalmaster fm ON o.OrderNumber COLLATE utf8mb4_unicode_ci = fm.OrderNumber 
              LEFT JOIN tbl_products p ON p.ProductID = o.ProductID
-             LEFT JOIN tbl_orderstatushistory h ON h.OrderNo = fm.OrderNumber
+             LEFT JOIN tbl_OrderStatusHistory h ON h.OrderNo = fm.OrderNumber
             
              WHERE fm.OrderNumber = ?
              `,
