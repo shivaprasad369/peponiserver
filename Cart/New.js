@@ -26,7 +26,7 @@ newCartRoute.get("/get-cart-by-number", async (req, res) => {
               p.Stock,
               p.ProductName,
               p.ProductPrice,
-              c.CategoryName
+              c.CategoryName,p.ProductUrl
             FROM tbl_products p
             JOIN tbl_finalcart tc ON p.ProductID = tc.ProductID
             JOIN tbl_category c ON c.CategoryID = p.CategoryID
@@ -40,7 +40,8 @@ newCartRoute.get("/get-cart-by-number", async (req, res) => {
           p.Stock,
           p.ProductName,
           p.ProductPrice,
-          c.CategoryName
+          c.CategoryName,
+          p.ProductUrl
         FROM tbl_products p
         JOIN tbl_tempcart tc ON p.ProductID = tc.ProductID
         JOIN tbl_category c ON c.CategoryID = p.CategoryID

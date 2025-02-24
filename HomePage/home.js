@@ -245,26 +245,44 @@ homeRoute.get("/attri/attributess", async (req, res) => {
     
 });
 homeRoute.get("/search", async (req, res) => {
-    const { query } = req.query; // Get search query from URL params
+    const { query, limit = 6 } = req.query; // Get search query & limit from URL params
   
     if (!query) {
-      return res.status(400).json({ error: "Search query is required" });
+        return res.status(400).json({ error: "Search query is required" });
     }
-  
+
     try {
-      const sql = `SELECT * FROM tbl_products 
-      WHERE ProductName LIKE ? OR Description LIKE ? 
-      OR MetaDescription LIKE ? OR MetaKeyWords LIKE ?
-       ORDER BY ProductName LIMIT 6`;
-      const searchTerm = `%${query}%`; // Add wildcards for partial matching
-      const [results] = await db.execute(sql, [searchTerm,searchTerm, searchTerm,searchTerm]);
-  
-      res.json(results);
+        const searchTerm = `%${query}%`; // Wildcards for partial matching
+        const limitValue = parseInt(limit);
+
+        // Search in Products
+        const sqlProducts = `SELECT * FROM tbl_products 
+                            WHERE ProductName LIKE ? OR Description LIKE ? 
+                            OR MetaDescription LIKE ? OR MetaKeyWords LIKE ?
+                            ORDER BY ProductName LIMIT ?`;
+        const [products] = await db.execute(sqlProducts, 
+                                            [searchTerm, searchTerm, searchTerm, searchTerm, limitValue]);
+
+        // Search in Categories
+        const sqlCategories = `SELECT * FROM tbl_category
+                               WHERE CategoryName LIKE ? OR KeyWord LIKE ? 
+                               OR Description LIKE ? OR Title LIKE ?
+                               ORDER BY CategoryName LIMIT ?`;
+        const [categories] = await db.execute(sqlCategories, 
+                                              [searchTerm, searchTerm, searchTerm, searchTerm, limitValue]);
+
+        // Constructing Response
+        res.json({
+            products: { results: products, link: "/detail" },
+            categories: { results: categories, link: "/product" }
+        });
+        
     } catch (error) {
-      console.error("Error fetching search results:", error);
-      res.status(500).json({ error: "Internal Server Error" });
+        console.error("Error fetching search results:", error);
+        res.status(500).json({ error: "Internal Server Error" });
     }
-  });
+});
+
   homeRoute.get('/quantity',async(req,res)=>{
     try{
         const {cartNumber,email}=req.query;
@@ -308,10 +326,11 @@ homeRoute.get("/search", async (req, res) => {
              FROM tbl_order o 
              JOIN tbl_finalmaster fm ON o.OrderNumber COLLATE utf8mb4_unicode_ci = fm.OrderNumber 
              LEFT JOIN tbl_products p ON p.ProductID = o.ProductID
+             
              WHERE o.UserEmail = ?`,
             [email]
         );
-
+        console.log(results)
         if (results.length === 0) {
             return res.status(404).json({ message: "No orders found for this user" });
         }
@@ -343,7 +362,8 @@ homeRoute.get("/search", async (req, res) => {
                         Quantities: order.Quantities,
                         Price: order.Price,
                         ItemTotal: order.ItemTotal
-                    }]
+                    }],
+                   
                 });
             }
 
@@ -436,6 +456,100 @@ homeRoute.get('/dashboard/product', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+homeRoute.get('/dashboard/products/:id', async (req, res) => {
+    const { id } = req.params;
+
+    
+
+    try {
+        // Fetch order details from the database
+        const [results] = await db.query(
+            `SELECT o.OrderNumber, 
+                    o.OrderDate, 
+                    fm.*, 
+                    p.ProductID, 
+                    p.ProductName, 
+                    p.Image AS ProductImages,
+                    o.Qty AS Quantities, 
+                    o.Price, 
+                    o.ItemTotal,
+                    h.*
+             FROM tbl_order o 
+             JOIN tbl_finalmaster fm ON o.OrderNumber COLLATE utf8mb4_unicode_ci = fm.OrderNumber 
+             LEFT JOIN tbl_products p ON p.ProductID = o.ProductID
+             LEFT JOIN tbl_orderstatushistory h ON h.OrderNo = fm.OrderNumber
+            
+             WHERE fm.OrderNumber = ?
+             `,
+            [id]
+        );
+
+        // Check if results are empty
+        if (results.length === 0) {
+            return res.status(404).json({ message: "No orders found for this user" });
+        }
+console.log(results)
+        // Format and group the orders by OrderNumber
+        const formattedResults = results.reduce((acc, order) => {
+            const existingOrder = acc.find(o => o.OrderNumber === order.OrderNumber);
+
+            if (existingOrder) {
+                existingOrder.Products.push({
+                    ProductImages: order.ProductImages,  // Add prefix for image path
+                    ProductID: order.ProductID,
+                    Quantities: order.Quantities,
+                    Price: order.Price,
+                    ItemTotal: order.ItemTotal,
+                    ProductName: order.ProductName
+                     // Include other fields like stripeid, etc.
+                });
+                existingOrder.History.push({
+                    OrderStatus: order.OrderStatus,
+                    date: order.OrderStatusDate,
+                    remark: order.OrderRemark
+                });
+                // Add the ItemTotal to the order's Total
+                existingOrder.Total += order.ItemTotal;
+            } else {
+                // If the order is not found, create a new entry in the accumulator
+                acc.push({
+                    OrderNumber: order.OrderNumber,
+                    OrderDate: new Date(order.OrderDate).toLocaleDateString(), // Format the date
+                    OrderStatus: order.OrderStatus,
+                    Total: order.ItemTotal,  
+                    stripeid: order.stripeid,
+                    ...order,
+                    // Include other fields like info from tbl_finalmaster
+                    Products: [{
+                        ProductImages: order.ProductImages , // Add prefix for image path
+                        ProductID: order.ProductID,
+                        Quantities: order.Quantities,
+                    ProductName: order.ProductName,
+
+                        Price: order.Price,
+                        ItemTotal: order.ItemTotal
+                    }],
+                    History: [{
+                        OrderStatus: order.OrderStatus,
+                        date:order.OrderStatusDate,
+                        remark:order.OrderRemark,
+
+
+                    }]
+                });
+            }
+
+            return acc;
+        }, []);
+
+        // Send the formatted response
+        res.status(200).json({ message: 'Dashboard fetched successfully', result: formattedResults });
+    } catch (error) {
+        console.error('Error fetching dashboard:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 
 
 

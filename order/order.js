@@ -5,32 +5,69 @@ import db from "../db/db.js";
 const orderRoute=express.Router();
 orderRoute.get('/:id', async (req, res) => {
     const { id } = req.params;
+    let { page = 1, limit = 10, search = "" } = req.query; // Default: Page 1, 10 items per page
+
+    page = parseInt(page);
+    limit = parseInt(limit);
+    const offset = (page - 1) * limit;
+
     try {
-        // Fetch order details from the database
+        // Fetch order details with pagination and search
         const [results] = await db.query(
             `SELECT o.OrderNumber, 
                     o.OrderDate, 
-                   fm.UserEmail,
-                   fm.BillingFirstname,
-                   fm.OrderNumber,
-                   fm.BillingLastname,
-                   fm.OrderStatus,
+                    fm.UserEmail,
+                    fm.BillingFirstname,
+                    fm.BillingLastname,
+                    fm.OrderStatus,
                     o.Qty AS Quantities, 
                     o.Price, 
                     o.ItemTotal
              FROM tbl_order o 
              JOIN tbl_finalmaster fm ON o.OrderNumber COLLATE utf8mb4_unicode_ci = fm.OrderNumber
-             WHERE fm.OrderStatus=?`,[id]
+             WHERE fm.OrderStatus = ? 
+               AND (fm.UserEmail LIKE ? 
+                    OR fm.BillingFirstname LIKE ? 
+                    OR fm.BillingLastname LIKE ? 
+                    OR o.OrderNumber LIKE ?)
+             GROUP BY o.OrderNumber 
+             ORDER BY o.OrderDate DESC
+             LIMIT ? OFFSET ?`, 
+            [id, `%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`, limit, offset]
         );
+
+        // Get total count for pagination
+        const [[{ totalCount }]] = await db.query(
+            `SELECT COUNT(DISTINCT o.OrderNumber) AS totalCount 
+             FROM tbl_order o 
+             JOIN tbl_finalmaster fm ON o.OrderNumber COLLATE utf8mb4_unicode_ci = fm.OrderNumber
+             WHERE fm.OrderStatus = ? 
+               AND (fm.UserEmail LIKE ? 
+                    OR fm.BillingFirstname LIKE ? 
+                    OR fm.BillingLastname LIKE ? 
+                    OR o.OrderNumber LIKE ?)`,
+            [id, `%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`]
+        );
+
         if (results.length === 0) {
-            return res.status(404).json({ message: "No orders found for this user" });
+            return res.status(404).json({ message: "No orders found" });
         }
-        res.status(200).json({ message: 'Dashboard fetched successfully', result: results });
+
+        res.status(200).json({
+            message: 'Orders fetched successfully',
+            result: results,
+            pagination: {
+                currentPage: page,
+                totalPages: Math.ceil(totalCount / limit),
+                totalRecords: totalCount
+            }
+        });
     } catch (error) {
-        console.error('Error fetching dashboard:', error);
+        console.error('Error fetching orders:', error);
         res.status(500).json({ error: error.message });
     }
 });
+
 orderRoute.get('/detail/:id', async (req, res) => {
     const { id } = req.params;
     if(!id){
