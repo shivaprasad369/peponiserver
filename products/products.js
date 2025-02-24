@@ -464,7 +464,7 @@ productsRoute.post('/sub-search', async (req, res) => {
                 if (Array.isArray(values) && values.length) {
                     conditions.push(`
                         EXISTS (
-                            SELECT 1 FROM tbl_productattribute pa
+                            SELECT * FROM tbl_productattribute pa
                             JOIN attribute_values av ON av.id = pa.AttributeValueID
                             JOIN attributes a ON a.id = av.attribute_id
                             WHERE pa.ProductID = p.ProductID 
