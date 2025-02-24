@@ -89,7 +89,7 @@ contactRoute.get('/', async (req, res) => {
 
         // Add pagination
         query += ` ORDER BY CreatedAt DESC LIMIT ? OFFSET ?`;
-        params.push(pageSize, (page - 1) * pageSize);
+        params.push(pageSize, pageSize);
 
         // Fetch data
         const [contacts] = await db.execute(query, params);
