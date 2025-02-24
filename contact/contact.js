@@ -67,8 +67,8 @@ contactRoute.post("/", async (req, res) => {
 
 contactRoute.get('/', async (req, res) => {
     try {
-        const page = parseInt(req.query.page); // Default to page 1
-        const pageSize = parseInt(req.query.pageSize); // Default to 10 items per page
+        const page = Number(req.query.page); // Default to page 1
+        const pageSize = Number(req.query.pageSize); // Default to 10 items per page
         const searchTerm = req.query.searchTerm?.trim() || ""; // Handle empty search terms
         // page = parseInt(page);
         // pageSize = parseInt(pageSize);
@@ -76,7 +76,7 @@ contactRoute.get('/', async (req, res) => {
 
         // Calculate offset for pagination
         const offset = (page - 1) * pageSize;
-
+        console.log(pageSize,offset,page)
         // Construct base query
         let query = `SELECT * FROM tbl_contact WHERE 1`;
         let params = [];
