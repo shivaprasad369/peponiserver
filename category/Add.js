@@ -56,7 +56,7 @@ categoryRoute.get("/pagination", async (req, res) => {
         const pageSize = parseInt(req.query.pageSize, 10) || 10; // Default to 10 items per page
         const searchTerm = req.query.search ? `%${req.query.search}%` : null;
 
-        const offset = (page - 1) * pageSize;
+        const offset = pageSize;
 
         let query = `
             SELECT CategoryID, Image, CategoryName, Status 
