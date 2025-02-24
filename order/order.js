@@ -30,7 +30,6 @@ orderRoute.get('/:id', async (req, res) => {
                     OR fm.BillingFirstname LIKE ? 
                     OR fm.BillingLastname LIKE ? 
                     OR o.OrderNumber LIKE ?)
-             GROUP BY o.OrderNumber 
              LIMIT ? OFFSET ?`, 
             [id, `%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`, limit, offset]
         );
