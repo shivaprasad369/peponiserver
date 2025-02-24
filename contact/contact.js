@@ -67,8 +67,8 @@ contactRoute.post("/", async (req, res) => {
 
 contactRoute.get('/', async (req, res) => {
     try {
-        const page = parseInt(req.query.page,1) ||1; // Default to page 1
-        const pageSize =parseInt(req.query.pageSize,10) || 10; // Default to 10 items per page
+        const page = Number(req.query.page) ; // Default to page 1
+        const pageSize =Number(req.query.pageSize); // Default to 10 items per page
         const searchTerm = req.query.searchTerm?.trim() || ""; // Handle empty search terms
 
         // Validate pagination inputs
