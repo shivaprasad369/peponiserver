@@ -435,7 +435,7 @@ productsRoute.post('/sub-search', async (req, res) => {
 
         // Fetch CategoryID from name if provided
         if (name) {
-            categoryFilter.push(`(SELECT CategoryID FROM tbl_category WHERE CategoryName = ? AND SubCategoryLevel = 1 LIMIT 1)`);
+            categoryFilter.push(`(SELECT CategoryID FROM tbl_category WHERE CategoryName = ? AND SubCategoryLevel = 1)`);
             params.push(name);
         }
 
