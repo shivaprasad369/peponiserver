@@ -67,8 +67,8 @@ contactRoute.post("/", async (req, res) => {
 
 contactRoute.get("/", async (req, res) => {
     try {
-        const page = parseInt(req.query.page, 10) || 1; // Default to page 1
-        const pageSize = parseInt(req.query.pageSize, 10) || 10; // Default to 10 items per page
+        const page = Number(req.query.page) || 1; // Ensure integer value
+        const pageSize = Number(req.query.pageSize) || 10; // Ensure integer value
         const searchTerm = req.query.searchTerm?.trim() || ""; // Handle empty search terms
 
         // Calculate offset for pagination
@@ -93,6 +93,11 @@ contactRoute.get("/", async (req, res) => {
         query += ` ORDER BY CreatedAt DESC LIMIT ? OFFSET ?`;
         params.push(pageSize, offset);
 
+        // ✅ Ensure `LIMIT` and `OFFSET` are integers
+        if (isNaN(pageSize) || isNaN(offset)) {
+            return res.status(400).json({ message: "Invalid pagination values" });
+        }
+
         // Fetch data
         const [contacts] = await db.execute(query, params);
 
@@ -114,6 +119,7 @@ contactRoute.get("/", async (req, res) => {
         res.status(500).json({ message: "Server error." });
     }
 });
+
 
 
 contactRoute.delete("/:id", async (req, res) => {
