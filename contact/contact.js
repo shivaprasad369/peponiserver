@@ -68,7 +68,7 @@ contactRoute.post("/", async (req, res) => {
 contactRoute.get('/', async (req, res) => {
     try {
         const page = Number(req.query.page); // Default to page 1
-        const pageSize = Number(req.query.pageSize); // Default to 10 items per page
+        const pageSize = parseInt(req.query.pageSize); // Default to 10 items per page
         const searchTerm = req.query.searchTerm?.trim() || ""; // Handle empty search terms
         // page = parseInt(page);
         // pageSize = parseInt(pageSize);
@@ -78,12 +78,12 @@ contactRoute.get('/', async (req, res) => {
         const offset = (page - 1) * pageSize;
         console.log(pageSize,offset,page)
         // Construct base query
-        let query = `SELECT * FROM tbl_contact WHERE 1`;
+        let query = `SELECT * FROM tbl_contact `;
         let params = [];
 
         // Apply search filter (if provided)
         if (searchTerm !== "") {
-            query += ` AND (FullName LIKE ? OR Email LIKE ? OR Message LIKE ?)`;
+            query += `WHERE (FullName LIKE ? OR Email LIKE ? OR Message LIKE ?)`;
             params.push(`%${searchTerm}%`, `%${searchTerm}%`, `%${searchTerm}%`);
         }
 
