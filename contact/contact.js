@@ -103,10 +103,10 @@ contactRoute.get('/', async (req, res) => {
         }
 
         // Fetch contacts
-        const [contacts] = await db.execute(query, params);
+        const [contacts] = await db.query(query, params);
 
         // Get total count for pagination
-        const [totalRows] = await db.execute(countQuery, countParams);
+        const [totalRows] = await db.query(countQuery, countParams);
         const totalContacts = totalRows[0].total;
 
         res.status(200).json({
