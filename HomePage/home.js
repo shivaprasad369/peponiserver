@@ -260,7 +260,7 @@ homeRoute.get("/search", async (req, res) => {
                             WHERE ProductName LIKE ? OR Description LIKE ? 
                             OR MetaDescription LIKE ? OR MetaKeyWords LIKE ?
                             ORDER BY ProductName LIMIT ?`;
-        const [products] = await db.execute(sqlProducts, 
+        const [products] = await db.query(sqlProducts, 
                                             [searchTerm, searchTerm, searchTerm, searchTerm, limitValue]);
 
         // Search in Categories
@@ -268,7 +268,7 @@ homeRoute.get("/search", async (req, res) => {
                                WHERE CategoryName LIKE ? OR KeyWord LIKE ? 
                                OR Description LIKE ? OR Title LIKE ?
                                ORDER BY CategoryName LIMIT ?`;
-        const [categories] = await db.execute(sqlCategories, 
+        const [categories] = await db.query(sqlCategories, 
                                               [searchTerm, searchTerm, searchTerm, searchTerm, limitValue]);
 
         // Constructing Response
