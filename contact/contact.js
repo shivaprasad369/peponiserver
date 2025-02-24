@@ -67,16 +67,17 @@ contactRoute.post("/", async (req, res) => {
 
 contactRoute.get("/", async (req, res) => {
     try {
-        const page = req.query.page; // Ensure integer value
-        const pageSize = req.query.pageSize; // Ensure integer value
+        const page = parseInt(req.query.page, 10) || 1; // Default to page 1
+        const pageSize = parseInt(req.query.pageSize, 10) || 10; // Default to 10 items per page
         const searchTerm = req.query.searchTerm?.trim() || ""; // Handle empty search terms
+  
+        // Calculate OFFSET for pagination
+        const offset = (page - 1) * pageSize;
 
         // ✅ Validate `pageSize` and `offset`
         if (isNaN(page) || isNaN(pageSize) || page < 1 || pageSize < 1) {
             return res.status(400).json({ message: "Invalid pagination values" });
         }
-
-        const offset = (Number(page) - 1) * Number(pageSize);
 
         let query = `SELECT * FROM tbl_contact`;
         let countQuery = `SELECT COUNT(*) AS total FROM tbl_contact`;
