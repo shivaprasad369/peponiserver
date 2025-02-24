@@ -67,14 +67,17 @@ contactRoute.post("/", async (req, res) => {
 
 contactRoute.get("/", async (req, res) => {
     try {
-        const page = Number(req.query.page) || 1; // Ensure integer value
-        const pageSize = Number(req.query.pageSize) || 10; // Ensure integer value
+        const page = parseInt(req.query.page, 10) || 1; // Ensure integer value
+        const pageSize = parseInt(req.query.pageSize, 10) || 10; // Ensure integer value
         const searchTerm = req.query.searchTerm?.trim() || ""; // Handle empty search terms
 
-        // Calculate offset for pagination
+        // ✅ Validate `pageSize` and `offset`
+        if (isNaN(page) || isNaN(pageSize) || page < 1 || pageSize < 1) {
+            return res.status(400).json({ message: "Invalid pagination values" });
+        }
+
         const offset = (page - 1) * pageSize;
 
-        // Construct base query
         let query = `SELECT * FROM tbl_contact`;
         let countQuery = `SELECT COUNT(*) AS total FROM tbl_contact`;
         let params = [];
@@ -89,16 +92,11 @@ contactRoute.get("/", async (req, res) => {
             countParams.push(`%${searchTerm}%`, `%${searchTerm}%`, `%${searchTerm}%`);
         }
 
-        // Add pagination
+        // ✅ Ensure `LIMIT` and `OFFSET` are always numbers
         query += ` ORDER BY CreatedAt DESC LIMIT ? OFFSET ?`;
-        params.push(pageSize, offset);
+        params.push(Number(pageSize), Number(offset)); // Convert to numbers before passing
 
-        // ✅ Ensure `LIMIT` and `OFFSET` are integers
-        if (isNaN(pageSize) || isNaN(offset)) {
-            return res.status(400).json({ message: "Invalid pagination values" });
-        }
-
-        // Fetch data
+        // Fetch paginated data
         const [contacts] = await db.execute(query, params);
 
         // Get total count for pagination
@@ -119,6 +117,7 @@ contactRoute.get("/", async (req, res) => {
         res.status(500).json({ message: "Server error." });
     }
 });
+
 
 
 
