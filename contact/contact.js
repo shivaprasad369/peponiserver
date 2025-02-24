@@ -67,8 +67,8 @@ contactRoute.post("/", async (req, res) => {
 
 contactRoute.get("/", async (req, res) => {
     try {
-        const page = parseInt(req.query.page, 10) || 1; // Ensure integer value
-        const pageSize = parseInt(req.query.pageSize, 10) || 10; // Ensure integer value
+        const page = req.query.page; // Ensure integer value
+        const pageSize = req.query.pageSize; // Ensure integer value
         const searchTerm = req.query.searchTerm?.trim() || ""; // Handle empty search terms
 
         // ✅ Validate `pageSize` and `offset`
@@ -76,7 +76,7 @@ contactRoute.get("/", async (req, res) => {
             return res.status(400).json({ message: "Invalid pagination values" });
         }
 
-        const offset = (page - 1) * pageSize;
+        const offset = page;
 
         let query = `SELECT * FROM tbl_contact`;
         let countQuery = `SELECT COUNT(*) AS total FROM tbl_contact`;
@@ -94,7 +94,7 @@ contactRoute.get("/", async (req, res) => {
 
         // ✅ Ensure `LIMIT` and `OFFSET` are always numbers
         query += ` ORDER BY CreatedAt DESC LIMIT ? OFFSET ?`;
-        params.push(Number(pageSize), Number(offset)); // Convert to numbers before passing
+        params.push(pageSize,offset); // Convert to numbers before passing
 
         // Fetch paginated data
         const [contacts] = await db.execute(query, params);
