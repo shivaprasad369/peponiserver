@@ -67,8 +67,8 @@ contactRoute.post("/", async (req, res) => {
 
 contactRoute.get('/', async (req, res) => {
     try {
-        const page = Number(req.query.page) || 1; // Default to page 1
-        const pageSize = parseInt(req.query.pageSize) || 10; // Default to 10 items per page
+        const page = req.query.page; // Default to page 1
+        const pageSize =req.query.pageSize; // Default to 10 items per page
         const searchTerm = req.query.searchTerm?.trim() || ""; // Handle empty search terms
 
         // Validate pagination inputs
@@ -96,9 +96,8 @@ contactRoute.get('/', async (req, res) => {
             countParams = [`%${searchTerm}%`, `%${searchTerm}%`, `%${searchTerm}%`];
         } else {
             // ✅ Query for when searchTerm is empty
-            query = `SELECT * FROM tbl_contact 
-                     LIMIT ? OFFSET ?`;
-            params = [pageSize, page];
+            query = `SELECT * FROM tbl_contact LIMIT ? OFFSET ?`;
+            params = [Number(pageSize),Number(page)];
 
             countQuery = `SELECT COUNT(*) AS total FROM tbl_contact`;
         }
