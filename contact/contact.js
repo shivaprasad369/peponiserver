@@ -76,7 +76,7 @@ contactRoute.get('/', async (req, res) => {
             return res.status(400).json({ message: "Invalid pagination values" });
         }
 
-        const offset = (2 - 1) * pageSize;
+        const offset = (2 - 1) * 10;
         console.log(pageSize, offset, page);
 
         let query;
