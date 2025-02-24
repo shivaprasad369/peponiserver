@@ -67,8 +67,8 @@ contactRoute.post("/", async (req, res) => {
 
 contactRoute.get('/', async (req, res) => {
     try {
-        const page = req.query.page; // Default to page 1
-        const pageSize =req.query.pageSize; // Default to 10 items per page
+        const page = parseInt(req.query.page,1) ||1; // Default to page 1
+        const pageSize =parseInt(req.query.pageSize,10) || 10; // Default to 10 items per page
         const searchTerm = req.query.searchTerm?.trim() || ""; // Handle empty search terms
 
         // Validate pagination inputs
@@ -76,7 +76,7 @@ contactRoute.get('/', async (req, res) => {
             return res.status(400).json({ message: "Invalid pagination values" });
         }
 
-        const offset = (2 - 1) * 10;
+        const offset = (page - 1) * pageSize;
         console.log(pageSize, offset, page);
 
         let query;
@@ -89,7 +89,7 @@ contactRoute.get('/', async (req, res) => {
             query = `SELECT * FROM tbl_contact 
                      WHERE FullName LIKE ? OR Email LIKE ? OR Message LIKE ? 
                      LIMIT ? OFFSET ?`;
-            params = [`%${searchTerm}%`, `%${searchTerm}%`, `%${searchTerm}%`, pageSize, offset];
+            params = [`%${searchTerm}%`, `%${searchTerm}%`, `%${searchTerm}%`, Number(pageSize),Number(offset)];
 
             countQuery = `SELECT COUNT(*) AS total FROM tbl_contact 
                           WHERE FullName LIKE ? OR Email LIKE ? OR Message LIKE ?`;
@@ -97,7 +97,7 @@ contactRoute.get('/', async (req, res) => {
         } else {
             // ✅ Query for when searchTerm is empty
             query = `SELECT * FROM tbl_contact  LIMIT ? OFFSET ?`;
-            params = [pageSize,page];
+            params = [Number(pageSize),Number(offset)];
 
             countQuery = `SELECT COUNT(*) AS total FROM tbl_contact`;
         }
