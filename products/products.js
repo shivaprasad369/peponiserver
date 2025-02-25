@@ -424,22 +424,23 @@ productsRoute.post('/search', async (req, res) => {
 // });
 
 
-productsRoute.post('/sub-search', async (req, res) => {
+productsRoute.post('/sub-search', async (req, res, next) => {
     try {
         const { categories, subcategories, attributes, priceRange, sortField, sortOrder, name } = req.body;
 
         console.log("Received Data:", req.body);
 
+        if (!name || name === "undefined") {
+            return res.status(400).json({ error: "Name is required" });
+        }
+
         let params = [];
         let conditions = ["p.Status = 1"];
         let joinClauses = "";
         let categoryFilter = categories && Array.isArray(categories) ? categories : [];
-        if(name===undefined){
-            return res.status(500).send('name is required')
-        }
-        // Fetch CategoryID from name if provided
-        if (name !== '') {
-            categoryFilter.push(`(SELECT CategoryID FROM tbl_category WHERE CategoryName = ? AND SubCategoryLevel=1)`);
+
+        if (name !== 'all') {
+            categoryFilter.push(`(SELECT CategoryID FROM tbl_category WHERE CategoryName = ? AND SubCategoryLevel = 1)`);
             params.push(name);
         }
 
@@ -456,19 +457,18 @@ productsRoute.post('/sub-search', async (req, res) => {
         }
 
         // Price Range Filtering
-        if (priceRange?.length === 2) {
+        if (Array.isArray(priceRange) && priceRange.length === 2) {
             conditions.push(`p.CashPrice BETWEEN ? AND ?`);
             params.push(priceRange[0], priceRange[1]);
         }
 
-        // Attribute Filtering (Efficient using EXISTS)
-        if (attributes && Object.keys(attributes).length) {
-            Object.keys(attributes).forEach((attrName, index) => {
-                const values = attributes[attrName];
+        // Attribute Filtering (Using EXISTS for efficiency)
+        if (attributes && typeof attributes === 'object' && Object.keys(attributes).length) {
+            Object.entries(attributes).forEach(([attrName, values]) => {
                 if (Array.isArray(values) && values.length) {
                     conditions.push(`
                         EXISTS (
-                            SELECT * FROM tbl_productattribute pa
+                            SELECT 1 FROM tbl_productattribute pa
                             JOIN attribute_values av ON av.id = pa.AttributeValueID
                             JOIN attributes a ON a.id = av.attribute_id
                             WHERE pa.ProductID = p.ProductID 
@@ -505,23 +505,24 @@ productsRoute.post('/sub-search', async (req, res) => {
 
         // Transform Data into Structured Format
         const filterData = data.map(product => ({
-            ProductID: Buffer.from(product.ProductID.toString()).toString('base64'),
-            ProductName: product.ProductName,
-            Image: product.Image,
-            url: product.ProductUrl,
-            ProductPrice: product.ProductPrice,
-            CashPrice: product.CashPrice,
-            CategoryID: Buffer.from(product.CategoryID.toString()).toString('base64'),
-            SubCategoryIDone: product.SubCategoryIDone
+            ProductID: Buffer.from((product.ProductID ?? "").toString()).toString('base64'),
+            ProductName: product.ProductName ?? "",
+            Image: product.Image ?? "",
+            url: product.ProductUrl ?? "",
+            ProductPrice: product.ProductPrice ?? 0,
+            CashPrice: product.CashPrice ?? 0,
+            CategoryID: Buffer.from((product.CategoryID ?? "").toString()).toString('base64'),
+            SubCategoryIDone: product.SubCategoryIDone ?? null
         }));
 
-        res.status(200).json(filterData);
+        return res.status(200).json(filterData);
 
     } catch (error) {
         console.error("Error fetching products:", error);
-        res.status(500).json({ error: error.message });
+        return res.status(500).json({ error: "Internal Server Error", details: error.message });
     }
 });
+
 
 
 productsRoute.get('/price',async(req,res)=>{
