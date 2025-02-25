@@ -296,9 +296,11 @@ productsRoute.post('/sub-search', async (req, res) => {
         console.log("Sorting received:", sortField, sortOrder);
 
         let categoryFilter = Array.isArray(categories) ? categories : [];
-        
+        if(name === ''){
+            return res.status(500).send('name is require')
+        }
         // If categories is empty, fetch CategoryID
-        if (!categories || categories.length === 0) {
+        if (name!=='') {
             const [results] = await db.query(
                 'SELECT CategoryID FROM tbl_category WHERE CategoryName=? AND SubCategoryLevel=1', 
                 [name]
