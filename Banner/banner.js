@@ -190,12 +190,15 @@ bannerRouter.put('/status/:id', async (req, res) => {
 });
 bannerRouter.get('/frontend',async(req,res)=>{
   try {
+    console.log('requested')
     const query = `SELECT b.BannerImage,b.BannerTitle FROM tbl_banner b
      WHERE b.Status=1`;
     const [results] = await db.query(query);
+    console.log('accetped')
     res.status(200).json({result:results});
   } catch (err) {
     console.error("Error fetching banners:", err);
+    console.log('rejected')
     res.status(500).json({ message: "Failed to fetch banners" });
   }
 });
