@@ -231,7 +231,9 @@ newCartRoute.put("/update-quantity", async (req, res) => {
         error: "id, userId, number.qty, and number.action are required.",
       });
     }
-  
+    if(number.qty===0){
+      return res.status(400).json({ error: "Quantity cannot be zero." });
+    }  
     if (!["increment", "decrement"].includes(number.action)) {
       return res
         .status(400)
