@@ -434,7 +434,7 @@ productsRoute.post('/sub-search', async (req, res) => {
         let conditions = ["p.Status = 1"];
         let joinClauses = "";
         let categoryFilter = categories && Array.isArray(categories) ? categories : [];
-        if(name===''){
+        if(name===undefined){
             return res.status(500).send('name is required')
         }
         // Fetch CategoryID from name if provided
