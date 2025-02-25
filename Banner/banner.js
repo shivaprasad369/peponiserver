@@ -46,11 +46,14 @@ try {
 
 bannerRouter.get("/get/:id", async (req, res) => {
   try {
+    console.log('requested')
     if (!req.params.id || isNaN(req.params.id)) {
       return res.status(400).json({ message: "Missing banner ID" });
     }
     const query = "SELECT * FROM tbl_banner WHERE BannerID=?";
     const [results] = await db.query(query, [req.params.id]);
+    console.log('sent')
+
     res.status(200).json({result:results});
   } catch (err) {
     console.error("Error fetching banner:", err);
