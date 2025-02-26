@@ -465,24 +465,25 @@ homeRoute.get('/dashboard/products/:id', async (req, res) => {
         // Fetch order details from the database
         const [results] = await db.query(
             `SELECT 
-    o.OrderNumber, 
-    o.OrderDate, 
-    fm.*, 
-    p.ProductID, 
-    p.ProductName, 
-    p.Image AS ProductImages,
-    o.Qty AS Quantities, 
-    o.Price, 
-    o.ItemTotal,
-    h.*
-FROM tbl_order o 
-JOIN tbl_finalmaster fm 
-    ON o.OrderNumber COLLATE utf8mb4_unicode_ci = fm.OrderNumber COLLATE utf8mb4_unicode_ci  -- Explicit collation match
-LEFT JOIN tbl_products p 
-    ON p.ProductID COLLATE utf8mb4_unicode_ci = o.ProductID COLLATE utf8mb4_unicode_ci -- Explicit collation match
-LEFT JOIN tbl_OrderStatusHistory h 
-    ON h.OrderNo COLLATE utf8mb4_unicode_ci = fm.OrderNumber COLLATE utf8mb4_unicode_ci -- Explicit collation match
-WHERE fm.OrderNumber COLLATE utf8mb4_unicode_ci =?
+        o.OrderNumber, 
+        o.OrderDate, 
+        fm.OrderStatus as Status,
+        fm.*, 
+        p.ProductID, 
+        p.ProductName, 
+        p.Image AS ProductImages,
+        o.Qty AS Quantities, 
+        o.Price, 
+        o.ItemTotal,
+        h.*
+    FROM tbl_order o 
+    JOIN tbl_finalmaster fm 
+        ON CONVERT(o.OrderNumber USING utf8mb4) = CONVERT(fm.OrderNumber USING utf8mb4)  
+    LEFT JOIN tbl_products p 
+        ON CONVERT(p.ProductID USING utf8mb4) = CONVERT(o.ProductID USING utf8mb4) 
+    LEFT JOIN tbl_OrderStatusHistory h 
+        ON CONVERT(h.OrderNo USING utf8mb4) = CONVERT(fm.OrderNumber USING utf8mb4)  
+    WHERE CONVERT(fm.OrderNumber USING utf8mb4) = ?
              `,
             [id]
         );
@@ -518,7 +519,7 @@ console.log(results)
                 acc.push({
                     OrderNumber: order.OrderNumber,
                     OrderDate: new Date(order.OrderDate).toLocaleDateString(), // Format the date
-                    OrderStatus: order.OrderStatus,
+                    Status: order.Status,
                     Total: order.ItemTotal,  
                     stripeid: order.stripeid,
                     ...order,
@@ -570,9 +571,12 @@ homeRoute.get('/CatID',async(req,res)=>{
 
 homeRoute.get("/check", async (req, res) => {
     try {
-      const { name } = req.query;
+      const { name,id } = req.query;
       if (!name) return res.status(400).json({ error: "Category name is required" });
-  
+        if(id){
+            const [result] = await db.query("SELECT * FROM tbl_category WHERE CategoryName = ? AND CategoryId!=?", [name,id]);
+            return res.json({ exists: result.length > 0 });  
+        }
       // Use 'await' to get the result
       const [result] = await db.query("SELECT * FROM tbl_category WHERE CategoryName = ?", [name]);
   

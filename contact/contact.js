@@ -96,7 +96,7 @@ contactRoute.get('/', async (req, res) => {
             countParams = [`%${searchTerm}%`, `%${searchTerm}%`, `%${searchTerm}%`];
         } else {
             // ✅ Query for when searchTerm is empty
-            query = `SELECT * FROM tbl_contact  LIMIT ? OFFSET ?`;
+            query = `SELECT * FROM tbl_contact ORDER BY CreatedAt DESC LIMIT ? OFFSET ?`;
             params = [Number(pageSize),Number(offset)];
 
             countQuery = `SELECT COUNT(*) AS total FROM tbl_contact`;

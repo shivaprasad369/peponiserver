@@ -30,6 +30,8 @@ orderRoute.get('/:id', async (req, res) => {
                     OR fm.BillingFirstname LIKE ? 
                     OR fm.BillingLastname LIKE ? 
                     OR o.OrderNumber LIKE ?)
+                    GROUP BY o.OrderNumber
+            ORDER BY o.OrderDate DESC 
              LIMIT ? OFFSET ?`, 
             [id, `%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`, limit, offset]
         );
@@ -145,4 +147,70 @@ orderRoute.get('/detail/:id', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+
+orderRoute.put('/', async (req, res) => {
+    const connection = await db.getConnection(); // Get DB connection
+    try {
+        const { OrderNumber, Remark, UserEmail, OrderStatus } = req.body;
+        if (!OrderNumber || !Remark || !OrderStatus || !UserEmail) {
+            return res.status(400).json({ message: "All fields are required" });
+        }
+
+        await connection.beginTransaction(); // Start transaction
+
+        // Lock the order row to prevent race conditions
+        const [orderCheck] = await connection.query(
+            `SELECT OrderNumber FROM tbl_finalmaster WHERE OrderNumber = ? FOR UPDATE`, 
+            [OrderNumber]
+        );
+
+        if (orderCheck.length === 0) {
+            await connection.rollback();
+            return res.status(404).json({ message: "Order not found" });
+        }
+
+        // Update order status
+        const [updateResult] = await connection.query(
+            `UPDATE tbl_finalmaster SET OrderStatus = ?, OrderComments = ? WHERE OrderNumber = ?`, 
+            [OrderStatus, Remark, OrderNumber]
+        );
+
+        if (updateResult.affectedRows === 0) {
+            await connection.rollback();
+            return res.status(500).json({ message: "Failed to update order" });
+        }
+        const [getId]=await connection.query(`
+            SELECT FinalMasterId FROM tbl_finalmaster WHERE OrderNumber =?`,
+            [OrderNumber]
+            
+            )
+            if(getId.length===0){
+                await connection.rollback();
+                return res.status(404).json({ message: "Failed to get FinalMasterId" });
+            }
+        // Insert order status history
+        const [historyResult] = await connection.query(
+            `INSERT INTO tbl_orderstatushistory (OrderNo,FinalMasterId, OrderStatus, OrderRemark, OrderStatusDate)
+             VALUES (?,?, ?, ?, NOW())`,
+             [OrderNumber, getId[0].FinalMasterId, OrderStatus, Remark]
+       
+        );
+
+        if (historyResult.affectedRows === 0) {
+            await connection.rollback();
+            return res.status(500).json({ message: "Failed to add status history" });
+        }
+
+        await connection.commit(); // Commit transaction
+        res.status(200).json({ message: "Order status updated successfully" });
+
+    } catch (error) {
+        await connection.rollback(); // Rollback if an error occurs
+        console.error('Error updating order status:', error);
+        res.status(500).json({ error: error.message });
+    } finally {
+        connection.release(); // Release connection back to the pool
+    }
+});
+
 export default orderRoute
