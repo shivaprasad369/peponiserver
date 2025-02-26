@@ -216,7 +216,7 @@ orderRoute.put('/', async (req, res) => {
             }
         // Insert order status history
         const [historyResult] = await connection.query(
-            `INSERT INTO tbl_orderstatushistory (OrderNo,FinalMasterId, OrderStatus, OrderRemark, OrderStatusDate)
+            `INSERT INTO tbl_OrderStatusHistory (OrderNo,FinalMasterId, OrderStatus, OrderRemark, OrderStatusDate)
              VALUES (?,?, ?, ?, NOW())`,
              [OrderNumber, getId[0].FinalMasterId, OrderStatus, Remark]
        
