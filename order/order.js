@@ -5,7 +5,7 @@ import db from "../db/db.js";
 const orderRoute=express.Router();
 orderRoute.get('/:id', async (req, res) => {
     const { id } = req.params;
-    let { page = 1, limit = 20, search = "" } = req.query;
+    let { page = 1, limit = 10, search = "" } = req.query;
 
     page = parseInt(page);
     limit = parseInt(limit);
