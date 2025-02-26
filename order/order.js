@@ -5,14 +5,14 @@ import db from "../db/db.js";
 const orderRoute=express.Router();
 orderRoute.get('/:id', async (req, res) => {
     const { id } = req.params;
-    let { page = 1, limit = 10, search = "" } = req.query; // Default: Page 1, 10 items per page
+    let { page = 1, limit = 20, search = "" } = req.query;
 
     page = parseInt(page);
     limit = parseInt(limit);
     const offset = (page - 1) * limit;
 
     try {
-        // Fetch order details with pagination and search
+        // Fetch orders without GROUP BY
         const [results] = await db.query(
             `SELECT o.OrderNumber, 
                     o.OrderDate, 
@@ -24,23 +24,48 @@ orderRoute.get('/:id', async (req, res) => {
                     o.Price, 
                     o.ItemTotal
              FROM tbl_order o 
-             JOIN tbl_finalmaster fm ON o.OrderNumber COLLATE utf8mb4_unicode_ci = fm.OrderNumber
+             JOIN tbl_finalmaster fm 
+               ON o.OrderNumber COLLATE utf8mb4_unicode_ci = fm.OrderNumber
              WHERE fm.OrderStatus = ? 
                AND (fm.UserEmail LIKE ? 
                     OR fm.BillingFirstname LIKE ? 
                     OR fm.BillingLastname LIKE ? 
                     OR o.OrderNumber LIKE ?)
-                    GROUP BY o.OrderNumber
-            ORDER BY o.OrderDate DESC 
+             ORDER BY o.OrderDate DESC 
              LIMIT ? OFFSET ?`, 
             [id, `%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`, limit, offset]
         );
+
+        // Manually group orders in JavaScript
+        const groupedOrders = results.reduce((acc, order) => {
+            if (!acc[order.OrderNumber]) {
+                acc[order.OrderNumber] = {
+                    OrderNumber: order.OrderNumber,
+                    OrderDate: order.OrderDate,
+                    UserEmail: order.UserEmail,
+                    BillingFirstname: order.BillingFirstname,
+                    BillingLastname: order.BillingLastname,
+                    OrderStatus: order.OrderStatus,
+                    Products: []
+                };
+            }
+            acc[order.OrderNumber].Products.push({
+                Quantities: order.Quantities,
+                Price: order.Price,
+                ItemTotal: order.ItemTotal
+            });
+            return acc;
+        }, {});
+
+        // Convert object to array
+        const groupedOrdersArray = Object.values(groupedOrders);
 
         // Get total count for pagination
         const [[{ totalCount }]] = await db.query(
             `SELECT COUNT(DISTINCT o.OrderNumber) AS totalCount 
              FROM tbl_order o 
-             JOIN tbl_finalmaster fm ON o.OrderNumber COLLATE utf8mb4_unicode_ci = fm.OrderNumber
+             JOIN tbl_finalmaster fm 
+               ON o.OrderNumber COLLATE utf8mb4_unicode_ci = fm.OrderNumber
              WHERE fm.OrderStatus = ? 
                AND (fm.UserEmail LIKE ? 
                     OR fm.BillingFirstname LIKE ? 
@@ -49,13 +74,13 @@ orderRoute.get('/:id', async (req, res) => {
             [id, `%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`]
         );
 
-        if (results.length === 0) {
+        if (groupedOrdersArray.length === 0) {
             return res.status(404).json({ message: "No orders found" });
         }
 
         res.status(200).json({
             message: 'Orders fetched successfully',
-            result: results,
+            result: groupedOrdersArray,
             pagination: {
                 currentPage: page,
                 totalPages: Math.ceil(totalCount / limit),
@@ -67,6 +92,7 @@ orderRoute.get('/:id', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+
 
 orderRoute.get('/detail/:id', async (req, res) => {
     const { id } = req.params;
