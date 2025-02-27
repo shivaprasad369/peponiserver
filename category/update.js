@@ -5,9 +5,27 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import upload from "../uploads.js";
+import slugify from "slugify";
 const categoryUpdateRoute = express.Router();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+async function generateUniqueSlug(title) {
+    let slug = slugify(title, { lower: true, strict: true });
+  
+    let [existing] = await db.query("SELECT COUNT(*) AS count FROM tbl_category WHERE CatURL = ?", [slug]);
+  
+    let count = existing[0].count;
+    while (count > 0) {
+      slug = `${slug}-${count}`;
+      [existing] = await db.query("SELECT COUNT(*) AS count FROM tbl_category WHERE CatURL = ?", [slug]);
+      count = existing[0].count;
+    }
+  
+    return slug;
+  }
+
+
 categoryUpdateRoute.get('/get', async (req, res) => {
     const { id } = req.query;
     if(!id){
@@ -117,7 +135,7 @@ categoryUpdateRoute.put("/:id", upload.single("NewImage"), async (req, res) => {
     const { id } = req.params;
     const { CategoryName, Image,ParentCategoryID } = req.body;
     const newImage = req.file;
-
+    const slug = await generateUniqueSlug(CategoryName);
     // Validate required fields
     if (!id || isNaN(id)) {
         return res.status(400).json({ message: "Invalid or missing Category ID" });
@@ -141,8 +159,8 @@ categoryUpdateRoute.put("/:id", upload.single("NewImage"), async (req, res) => {
             updatedImagePath = path.join("uploads", newImage.filename);
         }
         const [updateResult] = await db.query(
-            "UPDATE tbl_category SET CategoryName = ?, Image = ?,ParentCategoryID=? WHERE CategoryID = ?",
-            [CategoryName, updatedImagePath,ParentCategoryID, id]
+            "UPDATE tbl_category SET CategoryName = ?, Image = ?,ParentCategoryID=?,CatURL=? WHERE CategoryID = ?",
+            [CategoryName, updatedImagePath,ParentCategoryID, slug,id]
         );
 
         if (updateResult.affectedRows === 0) {

@@ -5,10 +5,25 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import upload from "../uploads.js";
+import slugify from "slugify";
 const categoryRoute = express.Router();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+async function generateUniqueSlug(title) {
+    let slug = slugify(title, { lower: true, strict: true });
+  
+    let [existing] = await db.query("SELECT COUNT(*) AS count FROM tbl_category WHERE CatURL = ?", [slug]);
+  
+    let count = existing[0].count;
+    while (count > 0) {
+      slug = `${slug}-${count}`;
+      [existing] = await db.query("SELECT COUNT(*) AS count FROM tbl_category WHERE CatURL = ?", [slug]);
+      count = existing[0].count;
+    }
+  
+    return slug;
+  }
 categoryRoute.post("/", upload.single('Image'), async (req, res) => {
     const { CategoryName, Image  } = req.body;
     if(!CategoryName ){
@@ -17,12 +32,12 @@ categoryRoute.post("/", upload.single('Image'), async (req, res) => {
     const imagePath = req.file ? path.join("uploads", req.file.filename) : null;
 try{
     console.log("File uploaded:", Image); 
-        
+    const slug = await generateUniqueSlug(CategoryName);
     const [result] = await db.query(
         "INSERT INTO tbl_category (CategoryName, CatURL, Title, KeyWord, Description, Image, ParentCategoryID, SubCategoryLevel) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
         [
           req.body.CategoryName, 
-          req.body.CatURL || '',
+          slug,
           req.body.Title || '',
           req.body.KeyWord || '',
           req.body.Description || '',
@@ -43,8 +58,8 @@ try{
 });
 
 categoryRoute.get("/", async (req, res) => {
-    const [result] = await db.query(`SELECT CategoryID,Image, CategoryName,Status
-         FROM tbl_category WHERE ParentCategoryID IS NULL`);
+    const [result] = await db.query(`SELECT CategoryID,Image,CatURL, CategoryName,Status
+         FROM tbl_category WHERE ParentCategoryID IS NULL AND Status=1`);
     if(result.length === 0){
         return res.status(400).json({ message: "No categories found" });
     }   

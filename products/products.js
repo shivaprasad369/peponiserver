@@ -439,13 +439,13 @@ productsRoute.post('/sub-search', async (req, res, next) => {
         let joinClauses = "";
         let categoryFilter = categories && Array.isArray(categories) ? categories : [];
 
-        if (name !== 'all') {
-            categoryFilter.push(`(SELECT CategoryID FROM tbl_category WHERE CategoryName = ? AND SubCategoryLevel = 1)`);
+        if (name !== 'all'&& categoryFilter.length===0) {
+            categoryFilter.push(`(SELECT CategoryID FROM tbl_category WHERE CatURL = ? AND SubCategoryLevel = 1)`);
             params.push(name);
         }
 
         // Convert category filter into SQL condition
-        if (categoryFilter.length) {
+        if (categoryFilter.length!==0) {
             conditions.push(`p.CategoryID IN (${categoryFilter.join(',')})`);
         }
 

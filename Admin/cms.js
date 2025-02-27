@@ -31,7 +31,7 @@ cmsRoute.get('/:id', async (req, res) => {
     }
     try {
         
-        const [result] = await db.query('SELECT * FROM cms WHERE id = ?', [id]);
+        const [result] = await db.query('SELECT id,header,CAST(content AS CHAR) as content FROM cms WHERE id = ?', [id]);
           if (result.length === 0) {
             return res.status(404).json({message:"CMS entry not found"});
           }
