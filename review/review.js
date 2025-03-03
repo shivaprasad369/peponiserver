@@ -20,10 +20,10 @@ reviewRoute.post("/", async (req, res) => {
     try {
         const { product_id, UserEmail, rating, review_text, order_number , review_title, order_date } = req.body;
       const query = `
-           INSERT INTO tbl_productreviews (product_id, UserEmail, rating, review_text, order_number, review_title, order_date) 
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+           INSERT INTO tbl_productreviews (product_id, UserEmail, rating,status,review_date, review_text, order_number, review_title, order_date) 
+        VALUES (?, ?, ?,?, ?,?, ?, ?, ?)
       `;
-      await db.query(query, [product_id, UserEmail, rating, review_text, order_number , review_title, order_date ]);
+      await db.query(query, [product_id, UserEmail, rating,0,new Date(), review_text, order_number , review_title, order_date ]);
       res.status(201).json({ message: "Review added successfully" });
     } catch (error) {
       res.status(500).json({ message: error.message });
