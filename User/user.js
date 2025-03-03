@@ -205,6 +205,63 @@ if (req.file) {
   }
 });
 
+userRoute.get('/', async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1; // ✅ Ensure `page` is a number
+    const limit = parseInt(req.query.limit) || 10; // ✅ Ensure `limit` is a number
+    const offset = (page - 1) * limit;
+    const tab=req.query.tab || 1
+
+    // ✅ Fetch total user count
+    const [[{ totalUsers }]] = await db.query('SELECT COUNT(*) AS totalUsers FROM tbl_user where is_verified=? AND status=?',[
+      tab==='1'? 1:0, // tab 1 shows verified users
+      tab==='2'? 0:1 // tab 2 shows unverified users
+    ]);
+
+    // ✅ Fetch paginated users
+    const [users] = await db.query('SELECT * FROM tbl_user where is_verified=? AND status=? LIMIT ? OFFSET ?', [tab==='1'? 1:0, // tab 1 shows verified users
+      tab==='2'? 0:1,limit, offset]);
+
+    res.json({
+      success: true,
+      data: users,
+      pagination: {
+        totalUsers,
+        totalPages: Math.ceil(totalUsers / limit),
+        currentPage: page,
+        limit,
+      },
+    });
+
+  } catch (error) {
+    console.error('[Get Users] Error:', error);
+    res.status(500).json({ success: false, message: 'Error fetching users', error: error.message });
+  }
+});
+
+userRoute.delete('/:id', async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id);
+    if (!userId) {
+      return res.status(400).json({ success: false, message: 'Please provide a valid user ID' });
+    }
+    const [user] = await db.query('SELECT * FROM tbl_user WHERE id =?', [userId]);
+    if (user.length === 0) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    const [result] = await db.execute('DELETE FROM tbl_user WHERE id =?', [userId]);
+    if (result.affectedRows === 0) {
+      return res.status(400).json({ success: false, message: 'Failed to delete user' });
+    }
+    res.json({ success: true, message: 'User deleted successfully' });
+    
+  } catch (error) {
+    console.error('[Delete User] Error:', error);
+    res.status(500).json({ success: false, message: 'Error deleting user', error: error.message });
+  
+  }
+})
+
 
 export default userRoute;
 
