@@ -560,7 +560,7 @@ console.log(results)
 homeRoute.get('/CatID',async(req,res)=>{
     try {
         const CatID = req.query.name;
-        const [results] = await db.query('SELECT CategoryID FROM tbl_category WHERE CategoryName=? AND SubCategoryLevel=1',[CatID]);
+        const [results] = await db.query('SELECT CategoryID FROM tbl_category WHERE CatURL=? AND SubCategoryLevel=1',[CatID]);
         res.status(200).json({message:'Category fetched successfully',result:results});
         
     } catch (error) {

@@ -33,6 +33,7 @@ import contactRoute from './contact/contact.js';
 import paymentRoute from './stripe/payment.js';
 import Stripe from 'stripe';
 import orderRoute from './order/order.js';
+import newReviewRoute from './review/NewReview.js';
 const numCPUs = os.cpus().length; 
 const app = express()
 
@@ -71,6 +72,7 @@ app.use('/checkout',checkout)
 app.use('/contact',contactRoute)
 app.use('/payment',paymentRoute)
 app.use('/order',orderRoute)
+app.use('/newreview',newReviewRoute)
 
 app.get("/test-db", async (req, res) => {
     console.log("connected");

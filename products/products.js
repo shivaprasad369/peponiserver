@@ -18,7 +18,7 @@ productsRoute.get('/collection', async (req, res) => {
              p.ProductPrice, p.CashPrice, p.Image, p.ProductUrl FROM tbl_category c JOIN tbl_products
               p ON p.CategoryID =
              c.CategoryID JOIN tbl_productattribute pa ON pa.ProductID = p.ProductID 
-             WHERE c.CategoryName = ? AND p.Status=1`, [name]);
+             WHERE c.CatURL = ? AND p.Status=1`, [name]);
 
         const [attribute] = await db.query(`
           SELECT 
@@ -28,7 +28,7 @@ productsRoute.get('/collection', async (req, res) => {
           JOIN tbl_category c1 ON c.CategoryID = c1.ParentCategoryID
           JOIN attributes a ON a.subcategory = c1.CategoryID
           JOIN attribute_values av ON a.id = av.attribute_id
-            WHERE c.CategoryName = ?`, [name]);
+            WHERE c.CatURL = ?`, [name]);
 
         // Group products
         const filterData = data.reduce((acc, curr) => {
@@ -439,10 +439,21 @@ productsRoute.post('/sub-search', async (req, res, next) => {
         let joinClauses = "";
         let categoryFilter = categories && Array.isArray(categories) ? categories : [];
 
-        if (name !== 'all'&& categoryFilter.length===0) {
-            categoryFilter.push(`(SELECT CategoryID FROM tbl_category WHERE CatURL = ? AND SubCategoryLevel = 1)`);
-            params.push(name);
+        // if (name !== 'all'&& categoryFilter.length===0) {
+        //     categoryFilter.push(`SELECT CategoryID FROM tbl_category WHERE CatURL = ? AND SubCategoryLevel = 1`);
+        //     params.push(name);
+        // }
+        if (name !== 'all' && categoryFilter.length === 0) {
+            const [categoryResult] = await db.query(
+                `SELECT CategoryID FROM tbl_category WHERE CatURL = ? AND SubCategoryLevel = 1`, 
+                [name]
+            );
+        
+            if (categoryResult.length > 0) {
+                categoryFilter.push(...categoryResult.map(row => row.CategoryID));
+            }
         }
+        
 
         // Convert category filter into SQL condition
         if (categoryFilter.length!==0) {
