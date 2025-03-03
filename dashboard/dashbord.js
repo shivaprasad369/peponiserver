@@ -20,8 +20,19 @@ import db from "../db/db.js";
 
 dashRoute.get("/weekly-stats", async (req, res) => {
   try {
+    //     SELECT 
+    //     YEARWEEK(OrderDate, 1) AS week, 
+    //     DATE_ADD(STR_TO_DATE(CONCAT(YEARWEEK(OrderDate, 1), ' Sunday'), '%X%V %W'), INTERVAL -6 DAY) AS week_start,
+    //     DATE_ADD(STR_TO_DATE(CONCAT(YEARWEEK(OrderDate, 1), ' Sunday'), '%X%V %W'), INTERVAL 0 DAY) AS week_end,
+    //     DAYNAME(DATE_ADD(STR_TO_DATE(CONCAT(YEARWEEK(OrderDate, 1), ' Sunday'), '%X%V %W'), INTERVAL -6 DAY)) AS start_day,
+    //     SUM(ItemTotal) AS total_revenue,
+    //     COUNT(DISTINCT OrderNumber) AS total_orders
+    // FROM tbl_order
+    // WHERE OrderDate >= DATE_SUB(CURDATE(), INTERVAL 6 WEEK)
+    // GROUP BY week
+    // ORDER BY week ASC
     const sql = `
-    SELECT 
+SELECT 
     YEARWEEK(OrderDate, 1) AS week, 
     DATE_ADD(STR_TO_DATE(CONCAT(YEARWEEK(OrderDate, 1), ' Sunday'), '%X%V %W'), INTERVAL -6 DAY) AS week_start,
     DATE_ADD(STR_TO_DATE(CONCAT(YEARWEEK(OrderDate, 1), ' Sunday'), '%X%V %W'), INTERVAL 0 DAY) AS week_end,
@@ -30,8 +41,8 @@ dashRoute.get("/weekly-stats", async (req, res) => {
     COUNT(DISTINCT OrderNumber) AS total_orders
 FROM tbl_order
 WHERE OrderDate >= DATE_SUB(CURDATE(), INTERVAL 6 WEEK)
-GROUP BY week
-ORDER BY week ASC
+GROUP BY week, week_start, week_end, start_day
+ORDER BY week ASC;
 
     `;
 
