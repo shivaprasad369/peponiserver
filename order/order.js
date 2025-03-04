@@ -1,6 +1,13 @@
 import express from "express";
 import db from "../db/db.js";
-
+import nodemailer from 'nodemailer';
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASSWORD,
+  },
+});
 
 const orderRoute=express.Router();
 orderRoute.get('/:id', async (req, res) => {
@@ -174,11 +181,84 @@ orderRoute.get('/detail/:id', async (req, res) => {
     }
 });
 
+// orderRoute.put('/', async (req, res) => {
+//     const connection = await db.getConnection(); // Get DB connection
+//     try {
+//         const { OrderNumber, Remark, UserEmail, OrderStatus } = req.body;
+//         if (!OrderNumber || !Remark || !OrderStatus || !UserEmail) {
+//             return res.status(400).json({ message: "All fields are required" });
+//         }
+
+//         await connection.beginTransaction(); // Start transaction
+
+//         // Lock the order row to prevent race conditions
+//         const [orderCheck] = await connection.query(
+//             `SELECT OrderNumber FROM tbl_finalmaster WHERE OrderNumber = ? FOR UPDATE`, 
+//             [OrderNumber]
+//         );
+
+//         if (orderCheck.length === 0) {
+//             await connection.rollback();
+//             return res.status(404).json({ message: "Order not found" });
+//         }
+
+//         // Update order status
+//         const [updateResult] = await connection.query(
+//             `UPDATE tbl_finalmaster SET OrderStatus = ?, OrderComments = ? WHERE OrderNumber = ?`, 
+//             [OrderStatus, Remark, OrderNumber]
+//         );
+
+//         if (updateResult.affectedRows === 0) {
+//             await connection.rollback();
+//             return res.status(500).json({ message: "Failed to update order" });
+//         }
+//         const [getId]=await connection.query(`
+//             SELECT FinalMasterId FROM tbl_finalmaster WHERE OrderNumber =?`,
+//             [OrderNumber]
+            
+//             )
+//             if(getId.length===0){
+//                 await connection.rollback();
+//                 return res.status(404).json({ message: "Failed to get FinalMasterId" });
+//             }
+//         // Insert order status history
+//         const [historyResult] = await connection.query(
+//             `INSERT INTO tbl_OrderStatusHistory (OrderNo,FinalMasterId, OrderStatus, OrderRemark, OrderStatusDate)
+//              VALUES (?,?, ?, ?, NOW())`,
+//              [OrderNumber, getId[0].FinalMasterId, OrderStatus, Remark]
+       
+//         );
+
+//         if (historyResult.affectedRows === 0) {
+//             await connection.rollback();
+//             return res.status(500).json({ message: "Failed to add status history" });
+//         }
+
+//         await connection.commit(); // Commit transaction
+//         const mailOptions = {
+//             from: process.env.EMAIL_USER,
+//             to: UserEmail,
+//             subject: 'Order Status Changed',
+//             text: `order number: ${OrderNumber} ${OrderStatus}`,
+//           };
+      
+//           await transporter.sendMail(mailOptions);
+//         res.status(200).json({ message: "Order status updated successfully" });
+
+//     } catch (error) {
+//         await connection.rollback(); // Rollback if an error occurs
+//         console.error('Error updating order status:', error);
+//         res.status(500).json({ error: error.message });
+//     } finally {
+//         connection.release(); // Release connection back to the pool
+//     }
+// });
 orderRoute.put('/', async (req, res) => {
     const connection = await db.getConnection(); // Get DB connection
     try {
         const { OrderNumber, Remark, UserEmail, OrderStatus } = req.body;
-        if (!OrderNumber || !Remark || !OrderStatus || !UserEmail) {
+
+        if (!OrderNumber || !Remark || OrderStatus === undefined || !UserEmail) {
             return res.status(400).json({ message: "All fields are required" });
         }
 
@@ -186,7 +266,7 @@ orderRoute.put('/', async (req, res) => {
 
         // Lock the order row to prevent race conditions
         const [orderCheck] = await connection.query(
-            `SELECT OrderNumber FROM tbl_finalmaster WHERE OrderNumber = ? FOR UPDATE`, 
+            `SELECT OrderNumber, FinalMasterId FROM tbl_finalmaster WHERE OrderNumber = ? FOR UPDATE`, 
             [OrderNumber]
         );
 
@@ -194,6 +274,8 @@ orderRoute.put('/', async (req, res) => {
             await connection.rollback();
             return res.status(404).json({ message: "Order not found" });
         }
+
+        const FinalMasterId = orderCheck[0].FinalMasterId;
 
         // Update order status
         const [updateResult] = await connection.query(
@@ -205,21 +287,12 @@ orderRoute.put('/', async (req, res) => {
             await connection.rollback();
             return res.status(500).json({ message: "Failed to update order" });
         }
-        const [getId]=await connection.query(`
-            SELECT FinalMasterId FROM tbl_finalmaster WHERE OrderNumber =?`,
-            [OrderNumber]
-            
-            )
-            if(getId.length===0){
-                await connection.rollback();
-                return res.status(404).json({ message: "Failed to get FinalMasterId" });
-            }
+
         // Insert order status history
         const [historyResult] = await connection.query(
-            `INSERT INTO tbl_OrderStatusHistory (OrderNo,FinalMasterId, OrderStatus, OrderRemark, OrderStatusDate)
-             VALUES (?,?, ?, ?, NOW())`,
-             [OrderNumber, getId[0].FinalMasterId, OrderStatus, Remark]
-       
+            `INSERT INTO tbl_OrderStatusHistory (OrderNo, FinalMasterId, OrderStatus, OrderRemark, OrderStatusDate)
+             VALUES (?, ?, ?, ?, NOW())`,
+            [OrderNumber, FinalMasterId, OrderStatus, Remark]
         );
 
         if (historyResult.affectedRows === 0) {
@@ -228,12 +301,60 @@ orderRoute.put('/', async (req, res) => {
         }
 
         await connection.commit(); // Commit transaction
+
+        // Order Status Mapping
+        const getOrderStatusText = (status) => {
+            switch (status) {
+                case 0: return "Order Placed";
+                case 1: return "Order Accepted";
+                case 2: return "Order Shipped";
+                case 3: return "Order Delivered";
+                default: return "Order Updated";
+            }
+        };
+
+        const orderStatusText = getOrderStatusText(OrderStatus);
+
+        // HTML Email Template
+        const htmlTemplate = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <style>
+                body { font-family: Arial, sans-serif; background: #f4f4f4; padding: 20px; text-align: center; }
+                .container { background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1); }
+                .status { font-weight: bold; color: #007bff; }
+                .footer { font-size: 12px; color: #777; margin-top: 10px; }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h3>Order Status Update</h3>
+                <p>Your order <strong>#${OrderNumber}</strong> is now: <span class="status">${orderStatusText}</span></p>
+                <p>Remark: ${Remark}</p>
+                <p>Thank you for choosing us!</p>
+                <div class="footer">&copy; Temp pepony gallary</div>
+            </div>
+        </body>
+        </html>
+        `;
+
+        // Send email notification
+        const mailOptions = {
+            from: process.env.EMAIL_USER,
+            to: UserEmail,
+            subject: `Order #${OrderNumber} Status Updated`,
+            html: htmlTemplate
+        };
+
+        await transporter.sendMail(mailOptions);
+
         res.status(200).json({ message: "Order status updated successfully" });
 
     } catch (error) {
         await connection.rollback(); // Rollback if an error occurs
         console.error('Error updating order status:', error);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: "Internal Server Error", details: error.message });
     } finally {
         connection.release(); // Release connection back to the pool
     }

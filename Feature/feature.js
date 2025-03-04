@@ -3,28 +3,67 @@ import db from "../db/db.js";
 const featureRoute = express.Router();
 
 featureRoute.get('/:id', async (req, res) => {
-    const { id } = req.params;
+    let { id } = req.params;
 
     // Validate ID parameter
     if (!id || isNaN(id)) {
         return res.status(400).json({ error: 'Valid Featured ID is required' });
     }
 
+    console.log(id);
+    
     try {
-        // Query to fetch products not associated with the given FeaturedID
-        const products = await db.query(` SELECT product.ProductID, product.ProductName, product.Image,features.FeaturedID 
-            FROM tbl_products product
-            LEFT JOIN tbl_featureproducts features 
-                ON product.ProductID = features.ProductID AND features.FeaturedID = ?
-            WHERE features.ProductID IS NULL
-          
-        `, [id]);
+        let query;
+        let queryParams = [];
 
+        switch (parseInt(id)) {
+            case 1: // Art-Works
+                query = `SELECT product.ProductID, product.ProductName, product.Image
+                         FROM tbl_products product
+                             LEFT JOIN tbl_category c ON C.CategoryID= product.CategoryID
+                         WHERE  c.CatURL =  'artworks'`;
+                
+                break;
+
+            case 3: // Art-Paints
+                query = `SELECT product.ProductID, product.ProductName, product.Image
+                         FROM tbl_products product
+                            
+                        LEFT JOIN tbl_category c ON C.CategoryID= product.CategoryID
+                         WHERE  c.CatURL = 'art-prints'`;
+               
+                break;
+
+            case 2: // Portraits
+                query = `SELECT product.ProductID, product.ProductName, product.Image
+                         FROM tbl_products product
+                             LEFT JOIN tbl_category c ON C.CategoryID= product.CategoryID
+                         WHERE c.CatURL  = 'portaits'`;
+                queryParams = [id];
+                break;
+
+            case 4: // All Products
+                query = `SELECT product.ProductID, product.ProductName, product.Image, features.FeaturedID 
+                         FROM tbl_products product
+                         LEFT JOIN tbl_featureproducts features 
+                             ON product.ProductID = features.ProductID AND features.FeaturedID = ?
+                         WHERE features.ProductID IS NULL`;
+                queryParams = [id];
+                break;
+
+            default:
+                return res.status(400).json({ error: 'Invalid Featured ID' });
+        }
+
+        // Execute the query
+        const products = await db.query(query, queryParams);
         res.json({ data: products });
+
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
 });
+
 
 featureRoute.get('/features/:id', async (req, res) => {
     try {

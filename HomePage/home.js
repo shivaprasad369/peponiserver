@@ -18,36 +18,45 @@ homeRoute.get("/", async (req, res) => {
 homeRoute.get('/collection', async (req, res) => {
     try {
         const { collection } = req.query;
+
         if (!collection) {
             return res.status(400).json({ error: "Collection is required" });
         }
 
-        const [data] = await db.query(
-            `SELECT 
+        const query = `
+            SELECT 
                 p.ProductName, f.name, p.ProductID, p.ProductUrl, p.ProductPrice, 
                 p.CashPrice, p.CategoryID, c.CategoryName, p.Image, p.SubCategoryIDone, 
                 f.position,
-                GROUP_CONCAT(JSON_OBJECT(
-                    'AttributeName', a.attribute_name,
-                    'attributeValue', av.value,
-                    'aid', a.id,
-                    'attributeValuesId', av.id
-                )) AS attributeValues
+                COALESCE(
+                    GROUP_CONCAT(
+                        JSON_OBJECT(
+                            'AttributeName', a.attribute_name,
+                            'attributeValue', av.value,
+                            'aid', a.id,
+                            'attributeValuesId', av.id
+                        )
+                    ), 
+                    '[]'
+                ) AS attributeValues
             FROM tbl_featureproducts f
             JOIN tbl_products p ON f.ProductID = p.ProductID
-            JOIN tbl_productattribute pa ON pa.ProductID = f.ProductID
             JOIN tbl_category c ON p.CategoryID = c.CategoryID
-            JOIN attribute_values av ON av.id = pa.AttributeValueID
-            JOIN attributes a ON av.attribute_id = a.id
+            LEFT JOIN tbl_productattribute pa ON pa.ProductID = p.ProductID
+            LEFT JOIN attribute_values av ON av.id = pa.AttributeValueID
+            LEFT JOIN attributes a ON av.attribute_id = a.id
             WHERE f.name = ? AND p.Status = 1
             GROUP BY p.ProductID, f.position
-            ORDER BY f.position ASC;`,
-            [collection]
-        );
+            ORDER BY f.position ASC;
+        `;
 
-        // Transform data into the correct format
+        const [data] = await db.query(query, [collection.toString()]);
+
+        // console.log("Fetched Data:", data);
+
+        // ✅ Fixing JSON parsing issue caused by GROUP_CONCAT
         const filterData = data.map((item) => ({
-            ProductID: Buffer.from(item.ProductID.toString()).toString('base64'),
+            ProductID: Buffer.from(String(item.ProductID)).toString('base64'),
             ProductName: item.ProductName,
             url: item.ProductUrl,
             position: item.position,
@@ -55,17 +64,19 @@ homeRoute.get('/collection', async (req, res) => {
             Image: item.Image,
             ProductPrice: item.ProductPrice,
             CashPrice: item.CashPrice,
-            CategoryID: Buffer.from(item.CategoryID.toString()).toString('base64'),
+            CategoryID: Buffer.from(String(item.CategoryID)).toString('base64'),
             SubCategoryIDone: item.SubCategoryIDone,
-            attributeValues: JSON.parse(`[${item.attributeValues}]`) // Parse attributes
+            attributeValues: JSON.parse(`[${item.attributeValues}]`) // ✅ Convert string to JSON array safely
         }));
 
         res.status(200).json(filterData);
     } catch (error) {
-        console.error("Error fetching collection:", error);
-        res.status(500).json({ error: error.message });
+        console.error("❌ Error fetching collection:", error);
+        res.status(500).json({ error: "Internal Server Error" });
     }
 });
+
+
 
 homeRoute.get("/blogs", async (req, res) => {
     try {
@@ -282,6 +293,8 @@ homeRoute.get("/search", async (req, res) => {
         res.status(500).json({ error: "Internal Server Error" });
     }
 });
+
+
 
   homeRoute.get('/quantity',async(req,res)=>{
     try{
