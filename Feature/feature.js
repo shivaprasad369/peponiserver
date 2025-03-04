@@ -20,7 +20,7 @@ featureRoute.get('/:id', async (req, res) => {
             case 1: // Art-Works
                 query = `SELECT product.ProductID, product.ProductName, product.Image
                          FROM tbl_products product
-                             LEFT JOIN tbl_category c ON C.CategoryID= product.CategoryID
+                             LEFT JOIN tbl_category c ON c.CategoryID= product.CategoryID
                          WHERE  c.CatURL =  'artworks'`;
                 
                 break;
@@ -29,7 +29,7 @@ featureRoute.get('/:id', async (req, res) => {
                 query = `SELECT product.ProductID, product.ProductName, product.Image
                          FROM tbl_products product
                             
-                        LEFT JOIN tbl_category c ON C.CategoryID= product.CategoryID
+                        LEFT JOIN tbl_category c ON c.CategoryID= product.CategoryID
                          WHERE  c.CatURL = 'art-prints'`;
                
                 break;
@@ -37,7 +37,7 @@ featureRoute.get('/:id', async (req, res) => {
             case 2: // Portraits
                 query = `SELECT product.ProductID, product.ProductName, product.Image
                          FROM tbl_products product
-                             LEFT JOIN tbl_category c ON C.CategoryID= product.CategoryID
+                             LEFT JOIN tbl_category c ON c.CategoryID= product.CategoryID
                          WHERE c.CatURL  = 'portaits'`;
                 queryParams = [id];
                 break;
