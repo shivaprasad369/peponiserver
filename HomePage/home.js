@@ -481,10 +481,10 @@ homeRoute.get('/dashboard/products/:id', async (req, res) => {
         ON CONVERT(o.OrderNumber USING utf8mb4) = CONVERT(fm.OrderNumber USING utf8mb4)  
     LEFT JOIN tbl_products p 
         ON CONVERT(p.ProductID USING utf8mb4) = CONVERT(o.ProductID USING utf8mb4) 
-    LEFT JOIN tbl_productreviews pr
     LEFT JOIN tbl_OrderStatusHistory h 
         ON CONVERT(h.OrderNo USING utf8mb4) = CONVERT(fm.OrderNumber USING utf8mb4)  
-    WHERE fm.OrderNumber  = ?`,
+    WHERE CONVERT(fm.OrderNumber USING utf8mb4) = ?
+             `,
             [id]
         );
 
