@@ -144,7 +144,7 @@ paymentRoute.post('/create-payment-intent', async (req, res) => {
                 `INSERT INTO tbl_order 
                  (UserEmail, ProductID, ProductAttributeId, Price, Qty, ItemTotal, OrderNumber, OrderDate) 
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-                [email, item.ProductID, item.ProductAttributeId || null, item.Price, item.Qty, item.ItemTotal || null, OrderNumber, new Date()]
+                [email, item.ProductID, item.ProductAttributeId || null, item.Price, item.Qty, item.Qty * item.Price || null, OrderNumber, new Date()]
             );
 
             // ✅ Check Stock Before Deducting

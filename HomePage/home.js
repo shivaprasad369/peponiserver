@@ -345,17 +345,17 @@ homeRoute.get("/search", async (req, res) => {
                     ProductID: order.ProductID,
                     Quantities: order.Quantities,
                     Price: order.Price,
-                    ItemTotal: order.ItemTotal
+                    ItemTotal: Number(order.ItemTotal)
                 });
 
                 // Add the ItemTotal to the order's Total
-                existingOrder.Total += order.ItemTotal;
+                existingOrder.Total += Number(order.ItemTotal);
             } else {
                 acc.push({
                     OrderNumber: order.OrderNumber,
                     OrderDate: new Date(order.OrderDate).toLocaleDateString(),  // Format OrderDate
                     OrderStatus: order.OrderStatus,
-                    Total: order.ItemTotal,  // Initialize Total with the first item's total
+                    Total: Number(order.ItemTotal),  // Initialize Total with the first item's total
                     Products: [{
                         ProductImages:  order.ProductImages,  // Add prefix for image path
                         ProductID: order.ProductID,
@@ -481,6 +481,7 @@ homeRoute.get('/dashboard/products/:id', async (req, res) => {
         ON CONVERT(o.OrderNumber USING utf8mb4) = CONVERT(fm.OrderNumber USING utf8mb4)  
     LEFT JOIN tbl_products p 
         ON CONVERT(p.ProductID USING utf8mb4) = CONVERT(o.ProductID USING utf8mb4) 
+    LEFT JOIN tbl_productreviews pr
     LEFT JOIN tbl_OrderStatusHistory h 
         ON CONVERT(h.OrderNo USING utf8mb4) = CONVERT(fm.OrderNumber USING utf8mb4)  
     WHERE CONVERT(fm.OrderNumber USING utf8mb4) = ?
@@ -492,7 +493,9 @@ homeRoute.get('/dashboard/products/:id', async (req, res) => {
         if (results.length === 0) {
             return res.status(404).json({ message: "No orders found for this user" });
         }
-console.log(results)
+       
+
+// console.log(results)
         // Format and group the orders by OrderNumber
         const formattedResults = results.reduce((acc, order) => {
             const existingOrder = acc.find(o => o.OrderNumber === order.OrderNumber);
