@@ -5,8 +5,8 @@ const db = mysql.createPool({
     // host: '18.168.176.225',     
     host:'localhost',      
     user: 'root', 
-    // password: process.env.DB_PASSWORD,           
-    password: '',    
+    password: process.env.DB_PASSWORD,           
+    // password: '',    
     database: process.env.DB_NAME,
     waitForConnections: true,
     connectionLimit: 10,       // Adjust based on your workload
