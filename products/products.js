@@ -687,7 +687,7 @@ productsRoute.post('/sub-search', async (req, res, next) => {
         let conditions = ["p.Status = 1"];
         let categoryFilter = categories && Array.isArray(categories) ? categories : [];
 
-        if (name !== 'all' && categoryFilter.length === 0) {
+        if (name !== 'all' ) {
             const [categoryResult] = await db.query(
                 `SELECT CategoryID FROM tbl_category WHERE CatURL = ? AND SubCategoryLevel = 1`, 
                 [name]

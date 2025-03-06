@@ -333,7 +333,7 @@ orderRoute.put('/', async (req, res) => {
                 <p>Your order <strong>#${OrderNumber}</strong> is now: <span class="status">${orderStatusText}</span></p>
                 <p>Remark: ${Remark}</p>
                 <p>Thank you for choosing us!</p>
-                <div class="footer">&copy; Temp pepony gallary</div>
+                <div class="footer">&copy; Team pepony gallery</div>
             </div>
         </body>
         </html>
