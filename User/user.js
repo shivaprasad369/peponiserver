@@ -5,6 +5,8 @@ import upload from '../uploads.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { auth, dbs } from '../firebase/firebase.js';
+import { getAuth } from 'firebase-admin/auth';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -140,6 +142,16 @@ userRoute.get('/profile', async (req, res) => {
 });
 
 
+userRoute.get("/firebase/:uid", async (req, res) => {
+  const email = 'shivu369sapare@gmail.com'
+  try {
+    await auth.deleteUser('6lkN9laSWINLfUTVINcKvWMM4kv2');
+    console.log(`User ${'6lkN9laSWINLfUTVINcKvWMM4kv2'} deleted successfully.`);
+  } catch (error) {
+    console.error("Error deleting user:", error.message);
+  }
+});
+
 
 // Update Profile endpoint
 userRoute.post('/profile', upload.single('profilePicture'), async (req, res) => {
@@ -207,20 +219,40 @@ if (req.file) {
 
 userRoute.get('/', async (req, res) => {
   try {
-    const page = parseInt(req.query.page) || 1; // ✅ Ensure `page` is a number
-    const limit = parseInt(req.query.limit) || 10; // ✅ Ensure `limit` is a number
+    const page = parseInt(req.query.page) || 1; // Default to page 1
+    const limit = parseInt(req.query.limit) || 10; // Default to 10 records per page
     const offset = (page - 1) * limit;
-    const tab=req.query.tab || 1
+    const tab = req.query.tab ? parseInt(req.query.tab) : 1; // Default to 1 (active users)
+
+    let isVerified, status;
+
+    if (tab === 0) {
+      // Not verified users
+      isVerified = 0;
+      status = 1;
+    } else if (tab === 1) {
+      // Active verified users
+      isVerified = 1;
+      status = 1;
+    } else if (tab === 2) {
+      // Blocked users
+      isVerified = 1;
+      status = 0;
+    } else {
+      return res.status(400).json({ success: false, message: 'Invalid tab value' });
+    }
 
     // ✅ Fetch total user count
-    const [[{ totalUsers }]] = await db.query('SELECT COUNT(*) AS totalUsers FROM tbl_user where is_verified=? AND status=?',[
-      tab==='1'? 1:0, // tab 1 shows verified users
-      tab==='2'? 0:1 // tab 2 shows unverified users
-    ]);
+    const [[{ totalUsers }]] = await db.query(
+      'SELECT COUNT(*) AS totalUsers FROM tbl_user WHERE is_verified = ? AND status = ?',
+      [isVerified, status]
+    );
 
     // ✅ Fetch paginated users
-    const [users] = await db.query('SELECT * FROM tbl_user where is_verified=? AND status=? LIMIT ? OFFSET ?', [tab==='1'? 1:0, // tab 1 shows verified users
-      tab==='2'? 0:1,limit, offset]);
+    const [users] = await db.query(
+      'SELECT * FROM tbl_user WHERE is_verified = ? AND status = ? LIMIT ? OFFSET ?',
+      [isVerified, status, limit, offset]
+    );
 
     res.json({
       success: true,
@@ -235,9 +267,37 @@ userRoute.get('/', async (req, res) => {
 
   } catch (error) {
     console.error('[Get Users] Error:', error);
-    res.status(500).json({ success: false, message: 'Error fetching users', error: error.message });
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching users',
+      error: error.message,
+    });
   }
 });
+
+// userRoute.delete('/:id', async (req, res) => {
+//   try {
+//     const userId = parseInt(req.params.id);
+//     if (!userId) {
+//       return res.status(400).json({ success: false, message: 'Please provide a valid user ID' });
+//     }
+//     const [user] = await db.query('SELECT * FROM tbl_user WHERE id =?', [userId]);
+//     if (user.length === 0) {
+//       return res.status(404).json({ success: false, message: 'User not found' });
+//     }
+
+//     const [result] = await db.execute('DELETE FROM tbl_user WHERE id =?', [userId]);
+//     if (result.affectedRows === 0) {
+//       return res.status(400).json({ success: false, message: 'Failed to delete user' });
+//     }
+//     res.json({ success: true, message: 'User deleted successfully' });
+    
+//   } catch (error) {
+//     console.error('[Delete User] Error:', error);
+//     res.status(500).json({ success: false, message: 'Error deleting user', error: error.message });
+  
+//   }
+// })
 
 userRoute.delete('/:id', async (req, res) => {
   try {
@@ -245,22 +305,121 @@ userRoute.delete('/:id', async (req, res) => {
     if (!userId) {
       return res.status(400).json({ success: false, message: 'Please provide a valid user ID' });
     }
-    const [user] = await db.query('SELECT * FROM tbl_user WHERE id =?', [userId]);
+
+    // Fetch user from MySQL database
+    const [user] = await db.query('SELECT * FROM tbl_user WHERE id = ?', [userId]);
     if (user.length === 0) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
-    const [result] = await db.execute('DELETE FROM tbl_user WHERE id =?', [userId]);
-    if (result.affectedRows === 0) {
-      return res.status(400).json({ success: false, message: 'Failed to delete user' });
+
+    const userEmail = user[0].email; // Make sure your MySQL table has an email field
+
+    if (userEmail) {
+      try {
+        const userRecord = await auth.getUserByEmail(userEmail);
+        await auth.deleteUser(userRecord.uid);
+        console.log(`User with UID ${userRecord.uid} deleted from Firebase.`);
+      } catch (firebaseError) {
+        console.error(`Failed to delete user from Firebase: ${firebaseError.message}`);
+        return res.status(500).json({ success: false, message: 'Error deleting user from Firebase', error: firebaseError.message });
+      }
     }
-    res.json({ success: true, message: 'User deleted successfully' });
-    
+
+    // Delete from MySQL
+    const [result] = await db.execute('DELETE FROM tbl_user WHERE id = ?', [userId]);
+    if (result.affectedRows === 0) {
+      return res.status(400).json({ success: false, message: 'Failed to delete user from MySQL' });
+    }
+
+    res.json({ success: true, message: 'User deleted successfully from MySQL and Firebase' });
+
   } catch (error) {
     console.error('[Delete User] Error:', error);
     res.status(500).json({ success: false, message: 'Error deleting user', error: error.message });
-  
   }
-})
+});
+
+
+userRoute.put('/disable/:id', async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id);
+    if (!userId) {
+      return res.status(400).json({ success: false, message: 'Please provide a valid user ID' });
+    }
+
+    // Fetch user from MySQL
+    const [user] = await db.query('SELECT * FROM tbl_user WHERE id = ?', [userId]);
+    if (user.length === 0) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    const userEmail = user[0].email; 
+
+    if (userEmail) {
+      try {
+        const userRecord = await auth.getUserByEmail(userEmail);
+        await auth.updateUser(userRecord.uid, { disabled: true });
+        console.log(`User with UID ${userRecord.uid} has been disabled in Firebase.`);
+      } catch (firebaseError) {
+        console.error(`Failed to disable user in Firebase: ${firebaseError.message}`);
+        return res.status(500).json({ success: false, message: 'Error disabling user in Firebase', error: firebaseError.message });
+      }
+    }
+
+    // Update status in MySQL
+    const [result] = await db.execute('UPDATE tbl_user SET status = 0 WHERE id = ?', [userId]);
+    if (result.affectedRows === 0) {
+      return res.status(400).json({ success: false, message: 'Failed to disable user in MySQL' });
+    }
+
+    res.json({ success: true, message: 'User disabled successfully in MySQL and Firebase' });
+
+  } catch (error) {
+    console.error('[Disable User] Error:', error);
+    res.status(500).json({ success: false, message: 'Error disabling user', error: error.message });
+  }
+});
+
+userRoute.put('/enable/:id', async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id);
+    if (!userId) {
+      return res.status(400).json({ success: false, message: 'Please provide a valid user ID' });
+    }
+
+    // Fetch user from MySQL
+    const [user] = await db.query('SELECT * FROM tbl_user WHERE id = ?', [userId]);
+    if (user.length === 0) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    const userEmail = user[0].email;
+
+    if (userEmail) {
+      try {
+        const userRecord = await auth.getUserByEmail(userEmail);
+        await auth.updateUser(userRecord.uid, { disabled: false });
+        console.log(`User with UID ${userRecord.uid} has been enabled in Firebase.`);
+      } catch (firebaseError) {
+        console.error(`Failed to enable user in Firebase: ${firebaseError.message}`);
+        return res.status(500).json({ success: false, message: 'Error enabling user in Firebase', error: firebaseError.message });
+      }
+    }
+
+    // Update status in MySQL
+    const [result] = await db.execute('UPDATE tbl_user SET status = 1 WHERE id = ?', [userId]);
+    if (result.affectedRows === 0) {
+      return res.status(400).json({ success: false, message: 'Failed to enable user in MySQL' });
+    }
+
+    res.json({ success: true, message: 'User enabled successfully in MySQL and Firebase' });
+
+  } catch (error) {
+    console.error('[Enable User] Error:', error);
+    res.status(500).json({ success: false, message: 'Error enabling user', error: error.message });
+  }
+});
+
 
 
 export default userRoute;
