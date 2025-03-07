@@ -11,10 +11,10 @@ import path from "path";
 const serviceAccount = JSON.parse(
   fs.readFileSync(path.resolve("firebase", "service-account.json"), "utf8")
 );
-
+// const serviceAccount = process.env.FIREBASE_CREDENTIALS;
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
-  databaseURL: "https://peponi-2135c.firebaseio.com", // Replace with your Firebase project URL
+  databaseURL:process.env.FIREBASE_DATABASE_URL, // Replace with your Firebase project URL
 });
 
 // Export authentication and Firestore
