@@ -1,7 +1,8 @@
 
 import admin from 'firebase-admin';
 import fs from 'fs';
-
+import dotenv from "dotenv";
+dotenv.config();
 // Load service account JSON using require()
 // import serviceAccount from './your-service-account.json' assert { type: 'json' };
 const serviceAccount={
