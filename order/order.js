@@ -30,7 +30,7 @@ orderRoute.get('/:id', async (req, res) => {
     fm.OrderStatus,
     SUM(o.Qty) AS TotalQuantities,
     SUM(o.Price) AS TotalPrice,   
-    SUM(o.ItemTotal) AS TotalItemTotal 
+    SUM(o.ItemTotal) AS TotalItemTotal
 FROM tbl_order o 
 JOIN tbl_finalmaster fm 
   ON o.OrderNumber COLLATE utf8mb4_unicode_ci = fm.OrderNumber
@@ -41,9 +41,15 @@ WHERE fm.OrderStatus = ?
       OR fm.BillingLastname LIKE ? 
       OR o.OrderNumber LIKE ?
   )
-GROUP BY o.OrderNumber
+GROUP BY 
+    o.OrderNumber, 
+    fm.UserEmail, 
+    fm.BillingFirstname, 
+    fm.BillingLastname, 
+    fm.OrderStatus
 ORDER BY MAX(o.OrderDate) DESC 
-LIMIT ? OFFSET ?;
+LIMIT ? OFFSET ?
+
 `, 
             [id, `%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`, limit, offset]
         );
