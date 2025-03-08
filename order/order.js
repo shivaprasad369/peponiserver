@@ -21,25 +21,30 @@ orderRoute.get('/:id', async (req, res) => {
     try {
         // Fetch orders without GROUP BY
         const [results] = await db.query(
-            `SELECT o.OrderNumber, 
-                    o.OrderDate, 
-                    fm.UserEmail,
-                    fm.BillingFirstname,
-                    fm.BillingLastname,
-                    fm.OrderStatus,
-                    o.Qty AS Quantities, 
-                    o.Price, 
-                    o.ItemTotal
-             FROM tbl_order o 
-             JOIN tbl_finalmaster fm 
-               ON o.OrderNumber COLLATE utf8mb4_unicode_ci = fm.OrderNumber
-             WHERE fm.OrderStatus = ? 
-               AND (fm.UserEmail LIKE ? 
-                    OR fm.BillingFirstname LIKE ? 
-                    OR fm.BillingLastname LIKE ? 
-                    OR o.OrderNumber LIKE ?)
-             ORDER BY o.OrderDate DESC 
-             LIMIT ? OFFSET ?`, 
+            `SELECT 
+    o.OrderNumber, 
+    MAX(o.OrderDate) AS OrderDate, 
+    fm.UserEmail,
+    fm.BillingFirstname,
+    fm.BillingLastname,
+    fm.OrderStatus,
+    SUM(o.Qty) AS TotalQuantities,
+    SUM(o.Price) AS TotalPrice,   
+    SUM(o.ItemTotal) AS TotalItemTotal 
+FROM tbl_order o 
+JOIN tbl_finalmaster fm 
+  ON o.OrderNumber COLLATE utf8mb4_unicode_ci = fm.OrderNumber
+WHERE fm.OrderStatus = ? 
+  AND (
+      fm.UserEmail LIKE ? 
+      OR fm.BillingFirstname LIKE ? 
+      OR fm.BillingLastname LIKE ? 
+      OR o.OrderNumber LIKE ?
+  )
+GROUP BY o.OrderNumber
+ORDER BY MAX(o.OrderDate) DESC 
+LIMIT ? OFFSET ?;
+`, 
             [id, `%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`, limit, offset]
         );
 
@@ -57,9 +62,9 @@ orderRoute.get('/:id', async (req, res) => {
                 };
             }
             acc[order.OrderNumber].Products.push({
-                Quantities: order.Quantities,
-                Price: order.Price,
-                ItemTotal: order.ItemTotal
+                Quantities: order.TotalQuantities   ,
+                Price: order.TotalPrice,
+                ItemTotal: order.TotalItemTotal
             });
             return acc;
         }, {});
