@@ -510,56 +510,51 @@ homeRoute.get('/dashboard/products/:id', async (req, res) => {
 // console.log(results)
         // Format and group the orders by OrderNumber
         const formattedResults = results.reduce((acc, order) => {
-            const existingOrder = acc.find(o => o.OrderNumber === order.OrderNumber);
+            let existingOrder = acc.find(o => o.OrderNumber === order.OrderNumber);
 
-            if (existingOrder) {
+            if (!existingOrder) {
+                // Create a new order entry
+                existingOrder = {
+                    OrderNumber: order.OrderNumber,
+                    OrderDate: new Date(order.OrderDate).toLocaleDateString(),
+                    Status: order.Status,
+                    Total: 0,
+                    stripeid: order.stripeid,
+                    Products: [],
+                    History: [],
+                    // Keep all other columns from tbl_finalmaster
+                    ...order
+                };
+                acc.push(existingOrder);
+            }
+
+            // ✅ Ensure unique products in the order
+            if (!existingOrder.Products.some(p => p.ProductID === order.ProductID)) {
                 existingOrder.Products.push({
-                    ProductImages: order.ProductImages,  // Add prefix for image path
+                    ProductImages: order.ProductImages,
                     ProductID: order.ProductID,
                     Quantities: order.Quantities,
+                    ProductName: order.ProductName,
                     Price: order.Price,
-                    ItemTotal: order.ItemTotal,
-                    ProductName: order.ProductName
-                     // Include other fields like stripeid, etc.
+                    ItemTotal: parseFloat(order.ItemTotal)
                 });
+
+                // ✅ Add ItemTotal to Total
+                existingOrder.Total += parseFloat(order.ItemTotal);
+            }
+
+            // ✅ Ensure unique history records
+            if (!existingOrder.History.some(h => h.OrderStatus === order.OrderStatus && h.date === order.OrderStatusDate)) {
                 existingOrder.History.push({
                     OrderStatus: order.OrderStatus,
                     date: order.OrderStatusDate,
                     remark: order.OrderRemark
                 });
-                // Add the ItemTotal to the order's Total
-                existingOrder.Total += order.ItemTotal;
-            } else {
-                // If the order is not found, create a new entry in the accumulator
-                acc.push({
-                    OrderNumber: order.OrderNumber,
-                    OrderDate: new Date(order.OrderDate).toLocaleDateString(), // Format the date
-                    Status: order.Status,
-                    Total: order.ItemTotal,  
-                    stripeid: order.stripeid,
-                    ...order,
-                    // Include other fields like info from tbl_finalmaster
-                    Products: [{
-                        ProductImages: order.ProductImages , // Add prefix for image path
-                        ProductID: order.ProductID,
-                        Quantities: order.Quantities,
-                    ProductName: order.ProductName,
-
-                        Price: order.Price,
-                        ItemTotal: order.ItemTotal
-                    }],
-                    History: [{
-                        OrderStatus: order.OrderStatus,
-                        date:order.OrderStatusDate,
-                        remark:order.OrderRemark,
-
-
-                    }]
-                });
             }
 
             return acc;
         }, []);
+
 
         // Send the formatted response
         res.status(200).json({ message: 'Dashboard fetched successfully', result: formattedResults });
