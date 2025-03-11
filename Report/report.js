@@ -5,8 +5,8 @@ const reportRoute = express.Router();
 
 reportRoute.get("/sales", async (req, res) => {
     try {
-        let { reportType, yearValue, month, startDate, endDate,halfYearOption, quarterOption } = req.query;
-        let halfYear = halfYearOption ;
+        let { reportType, yearValue, month, startDate, endDate, halfYearOption, quarterOption } = req.query;
+        let halfYear = halfYearOption;
         let quarter = quarterOption;
         let year = yearValue;
 
@@ -16,11 +16,10 @@ reportRoute.get("/sales", async (req, res) => {
 
         switch (reportType) {
             case "current":
-                // Fetch sales for the current month
                 year = year || currentDate.getFullYear();
-                month = month || currentDate.getMonth() + 1; // JS months are 0-indexed, SQL is 1-based
+                month = month || currentDate.getMonth() + 1;
                 query = `
-                    SELECT p.ProductName, u.full_name AS UserName, o.UserEmail, o.OrderNumber, o.OrderDate, o.Qty, o.Price
+                    SELECT p.ProductName, p.ProductID, u.full_name AS UserName, o.UserEmail, o.OrderNumber, o.OrderDate, o.Qty, o.Price, o.ItemTotal
                     FROM tbl_products p
                     JOIN tbl_order o ON p.ProductID = o.ProductID
                     JOIN tbl_user u ON u.email = o.UserEmail
@@ -31,10 +30,9 @@ reportRoute.get("/sales", async (req, res) => {
                 break;
 
             case "year":
-                // Fetch sales for the given year
                 year = year || currentDate.getFullYear();
                 query = `
-                    SELECT p.ProductName, u.full_name AS UserName, o.UserEmail, o.OrderNumber, o.OrderDate, o.Qty, o.Price
+                    SELECT p.ProductName, p.ProductID, u.full_name AS UserName, o.UserEmail, o.OrderNumber, o.OrderDate, o.Qty, o.Price, o.ItemTotal
                     FROM tbl_products p
                     JOIN tbl_order o ON p.ProductID = o.ProductID
                     JOIN tbl_user u ON u.email = o.UserEmail
@@ -45,12 +43,11 @@ reportRoute.get("/sales", async (req, res) => {
                 break;
 
             case "custom":
-                // Fetch sales between two dates
                 if (!startDate || !endDate) {
                     return res.status(400).json({ message: "startDate and endDate are required for datebetween reportType." });
                 }
                 query = `
-                    SELECT p.ProductName, u.full_name AS UserName, o.UserEmail, o.OrderNumber, o.OrderDate, o.Qty, o.Price
+                    SELECT p.ProductName, p.ProductID, u.full_name AS UserName, o.UserEmail, o.OrderNumber, o.OrderDate, o.Qty, o.Price, o.ItemTotal
                     FROM tbl_products p
                     JOIN tbl_order o ON p.ProductID = o.ProductID
                     JOIN tbl_user u ON u.email = o.UserEmail
@@ -61,11 +58,10 @@ reportRoute.get("/sales", async (req, res) => {
                 break;
 
             case "half":
-                // Fetch sales for H1 (Jan-Jun) or H2 (Jul-Dec)
                 year = year || currentDate.getFullYear();
                 if (halfYear === "H1") {
                     query = `
-                        SELECT p.ProductName, u.full_name AS UserName, o.UserEmail, o.OrderNumber, o.OrderDate, o.Qty, o.Price
+                        SELECT p.ProductName, p.ProductID, u.full_name AS UserName, o.UserEmail, o.OrderNumber, o.OrderDate, o.Qty, o.Price, o.ItemTotal
                         FROM tbl_products p
                         JOIN tbl_order o ON p.ProductID = o.ProductID
                         JOIN tbl_user u ON u.email = o.UserEmail
@@ -74,7 +70,7 @@ reportRoute.get("/sales", async (req, res) => {
                     `;
                 } else if (halfYear === "H2") {
                     query = `
-                        SELECT p.ProductName, u.full_name AS UserName, o.UserEmail, o.OrderNumber, o.OrderDate, o.Qty, o.Price
+                        SELECT p.ProductName, p.ProductID, u.full_name AS UserName, o.UserEmail, o.OrderNumber, o.OrderDate, o.Qty, o.Price, o.ItemTotal
                         FROM tbl_products p
                         JOIN tbl_order o ON p.ProductID = o.ProductID
                         JOIN tbl_user u ON u.email = o.UserEmail
@@ -88,7 +84,6 @@ reportRoute.get("/sales", async (req, res) => {
                 break;
 
             case "quarter":
-                // Fetch sales for a specific quarter (Q1, Q2, Q3, Q4)
                 year = year || currentDate.getFullYear();
                 let monthRange = [];
                 if (quarter === "Q1") monthRange = [1, 3];
@@ -98,7 +93,7 @@ reportRoute.get("/sales", async (req, res) => {
                 else return res.status(400).json({ message: "Invalid quarter value. Use 'Q1', 'Q2', 'Q3', or 'Q4'." });
 
                 query = `
-                    SELECT p.ProductName, u.full_name AS UserName, o.UserEmail, o.OrderNumber, o.OrderDate, o.Qty, o.Price
+                    SELECT p.ProductName, p.ProductID, u.full_name AS UserName, o.UserEmail, o.OrderNumber, o.OrderDate, o.Qty, o.Price, o.ItemTotal
                     FROM tbl_products p
                     JOIN tbl_order o ON p.ProductID = o.ProductID
                     JOIN tbl_user u ON u.email = o.UserEmail
@@ -109,24 +104,23 @@ reportRoute.get("/sales", async (req, res) => {
                 break;
 
             default:
-                return res.status(400).json({ message: "Invalid reportType. Use 'currentmonth', 'year', 'datebetween', 'halfyear', or 'quarter'." });
+                return res.status(400).json({ message: "Invalid reportType." });
         }
 
-        // Execute the query
         const [sales] = await db.query(query, queryParams);
 
-        // Format response data
         const formattedSales = sales.map((sale) => ({
             OrderNumber: sale.OrderNumber,
             ProductName: sale.ProductName,
             UserName: sale.UserName,
             UserEmail: sale.UserEmail,
-            OrderDate: sale.OrderDate, // Extract YYYY-MM-DD from ISO format
+            OrderDate: sale.OrderDate,
             Quantity: sale.Qty,
-            Price: Number(parseFloat(sale.Price).toFixed(2))
+            ProductID: sale.ProductID,
+            Price: Number(parseFloat(sale.Price).toFixed(2)),
+            ItemTotal: Number(parseFloat(sale.ItemTotal).toFixed(2))
         }));
 
-        // Group sales by OrderNumber
         const groupedSales = formattedSales.reduce((acc, sale) => {
             if (!acc[sale.OrderNumber]) {
                 acc[sale.OrderNumber] = {
@@ -134,26 +128,31 @@ reportRoute.get("/sales", async (req, res) => {
                     UserName: sale.UserName,
                     UserEmail: sale.UserEmail,
                     OrderDate: sale.OrderDate,
-                    Items: []
+                    Items: new Map()
                 };
             }
-            acc[sale.OrderNumber].Items.push({
-                ProductName: sale.ProductName,
-                Quantity: sale.Quantity,
-                Price: sale.Price
-            });
+            if (!acc[sale.OrderNumber].Items.has(sale.ProductID)) {
+                acc[sale.OrderNumber].Items.set(sale.ProductID, {
+                    ProductName: sale.ProductName,
+                    Quantity: sale.Quantity,
+                    ProductID: sale.ProductID,
+                    Price: sale.Price,
+                    ItemTotal: sale.ItemTotal
+                });
+            }
             return acc;
         }, {});
 
-        // Convert grouped sales into an array format
-        const formattedResponse = Object.values(groupedSales);
+        const formattedResponse = Object.values(groupedSales).map(order => {
+            return { ...order, Items: Array.from(order.Items.values()) };
+        });
 
         res.json({ reportType, year, month, sales: formattedResponse });
-
     } catch (error) {
         console.error("Error fetching sales:", error);
         res.status(500).json({ message: error.message });
     }
 });
+
 
 export default reportRoute;

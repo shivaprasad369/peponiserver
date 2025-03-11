@@ -10,6 +10,88 @@ const transporter = nodemailer.createTransport({
 });
 
 const orderRoute=express.Router();
+
+orderRoute.get('/', async (req, res) => {
+    try {
+        // Fetch top 10 most recent orders
+        const [results] = await db.query(
+            `SELECT 
+                o.OrderNumber, 
+                MAX(o.OrderDate) AS OrderDate, 
+                fm.UserEmail,
+                fm.BillingFirstname,
+                fm.BillingLastname,
+                fm.OrderStatus,
+                SUM(o.Qty) AS TotalQuantities,
+                SUM(o.Price) AS TotalPrice,   
+                SUM(o.ItemTotal) AS TotalItemTotal
+            FROM tbl_order o 
+            JOIN tbl_finalmaster fm 
+                ON o.OrderNumber COLLATE utf8mb4_unicode_ci = fm.OrderNumber
+            GROUP BY 
+                o.OrderNumber, 
+                fm.UserEmail, 
+                fm.BillingFirstname, 
+                fm.BillingLastname, 
+                fm.OrderStatus
+            ORDER BY MAX(o.OrderDate) DESC  -- Sorting by recent orders
+            LIMIT 10` // Fetch only 10 orders
+        );
+
+        // Check if no results found
+        if (results.length === 0) {
+            return res.status(404).json({ message: "No recent orders found" });
+        }
+
+        // Send response
+        res.status(200).json({
+            message: 'Top 10 recent orders fetched successfully',
+            result: results
+        });
+    } catch (error) {
+        console.error('Error fetching recent orders:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+
+orderRoute.get('/sale',async(req,res)=>{
+    try {
+        // Fetch total sales
+        const [sales] = await db.query(
+            `SELECT 
+    c.CategoryID, 
+    c.CategoryName, 
+    COUNT(o.OrderNumber) AS TotalOrders,
+    COALESCE(SUM(o.Qty), 0) AS TotalQuantity, 
+    COALESCE(SUM(o.ItemTotal), 0) AS TotalSales
+FROM tbl_category c
+LEFT JOIN tbl_products p ON c.CategoryID = p.CategoryID
+LEFT JOIN tbl_order o ON p.ProductID = o.ProductID
+WHERE c.SubCategoryLevel=1
+GROUP BY c.CategoryID, c.CategoryName
+ORDER BY TotalSales DESC`
+        );
+        
+        // Check if no results found
+        if (sales.length === 0) {
+            return res.status(404).json({ message: "No sales data found" });
+        }
+        
+        // Send response
+        res.status(200).json({
+            message: 'Sales data fetched successfully',
+            result: sales
+        });
+    } catch (error) {
+        console.error('Error fetching sales data:', error);
+        res.status(500).json({ error: error.message });
+   
+
+
+}
+})
+
 orderRoute.get('/:id', async (req, res) => {
     const { id } = req.params;
     let { page = 1, limit = 10, search = "" } = req.query;
