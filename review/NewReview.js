@@ -69,7 +69,7 @@ newReviewRoute.get('/search', async (req, res) => {
                 LIMIT ? OFFSET ?
             `;
             const searchTerms = `%${searchTerm}%`;
-            queryParams = [Numver(tab), searchTerms, searchTerms, searchTerms, searchTerms, searchTerms, parseInt(limit), parseInt(offset)];
+            queryParams = [Number(tab), searchTerms, searchTerms, searchTerms, searchTerms, searchTerms, parseInt(limit), parseInt(offset)];
 
             countQuery = `
                 SELECT COUNT(*) as total 
