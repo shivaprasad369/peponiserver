@@ -37,18 +37,18 @@ productRoute.post('/', upload.fields([{ name: 'productImage' }, { name: 'Product
             Stock :Stock  ,
             cashPrice,
             categoryId,
-            
+            subCategoryId
             subCategoryLv2Id,
             productDescription,
             attributeValue
         } = req.body;
-        const subCategoryId=req.body.subCategoryId || 0 ;
         const productImage = req.files.productImage ? req.files.productImage[0] : null;
         const productImagePath = productImage ? path.join('uploads', productImage.filename) : null;
         const productImages = req.files.ProductImages || [];
         const insertProductQuery = `
             INSERT INTO tbl_products(ProductName, MetaTitle, metaDescription, MetaKeyWords, ProductPrice, DiscountPercentage, 
-                                     DiscountPrice, SellingPrice, CashPrice, CategoryID, SubCategoryIDone, SubCategoryIDtwo, Description, Image,Stock,ProductUrl) 
+                                     DiscountPrice, SellingPrice, CashPrice, CategoryID, SubCategoryIDone, SubCategoryIDtwo, Description, Image,
+                                     Stock,ProductUrl) 
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?,?)`;
             const slug = await generateUniqueSlug(productName);
        const [result] = await db.query(insertProductQuery, [
@@ -252,7 +252,7 @@ console.log(newImage)
 
         const [updateProductResult] = await db.query(updateProductQuery, [
             productName, metaTitle, metaDescription, metaKeyword, productPrice, discountPercentage,
-            discountPrice, sellingPrice, cashPrice, categoryId,stock, subCategoryId, subCategoryLv2Id,
+            discountPrice, sellingPrice, cashPrice, categoryId,stock, subCategoryId || 0, subCategoryLv2Id || 0,
             productDescription,slug, Number(id)
         ]);
 
