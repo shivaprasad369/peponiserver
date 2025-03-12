@@ -42,7 +42,7 @@ productRoute.post('/', upload.fields([{ name: 'productImage' }, { name: 'Product
             productDescription,
             attributeValue
         } = req.body;
-        const subCategoryId=req.body.subCategoryId || 0 ,
+        const subCategoryId=req.body.subCategoryId || 0 ;
         const productImage = req.files.productImage ? req.files.productImage[0] : null;
         const productImagePath = productImage ? path.join('uploads', productImage.filename) : null;
         const productImages = req.files.ProductImages || [];
