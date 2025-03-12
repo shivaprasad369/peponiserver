@@ -12,12 +12,12 @@ const __dirname = path.dirname(__filename);
 async function generateUniqueSlug(title) {
     let slug = slugify(title, { lower: true, strict: true });
   
-    let [existing] = await db.query("SELECT COUNT(*) AS count FROM tbl_products WHERE slug = ?", [slug]);
+    let [existing] = await db.query("SELECT COUNT(*) AS count FROM tbl_products WHERE ProductUrl = ?", [slug]);
   
     let count = existing[0].count;
     while (count > 0) {
       slug = `${slug}-${count}`;
-      [existing] = await db.query("SELECT COUNT(*) AS count FROM tbl_products WHERE slug = ?", [slug]);
+      [existing] = await db.query("SELECT COUNT(*) AS count FROM tbl_products WHERE ProductUrl = ?", [slug]);
       count = existing[0].count;
     }
   
