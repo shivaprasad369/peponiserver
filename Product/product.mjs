@@ -37,7 +37,7 @@ productRoute.post('/', upload.fields([{ name: 'productImage' }, { name: 'Product
             Stock :Stock  ,
             cashPrice,
             categoryId,
-            subCategoryId
+            subCategoryId,
             subCategoryLv2Id,
             productDescription,
             attributeValue
