@@ -145,8 +145,8 @@ userRoute.get('/profile', async (req, res) => {
 userRoute.get("/firebase/:uid", async (req, res) => {
   const email = 'shivu369sapare@gmail.com'
   try {
-    await auth.deleteUser('6lkN9laSWINLfUTVINcKvWMM4kv2');
-    console.log(`User ${'6lkN9laSWINLfUTVINcKvWMM4kv2'} deleted successfully.`);
+    await auth.deleteUser('apY2bSyHdccOJ8lm3tD398QdPCC2');
+    console.log(`User ${'apY2bSyHdccOJ8lm3tD398QdPCC2'} deleted successfully.`);
   } catch (error) {
     console.error("Error deleting user:", error.message);
   }
