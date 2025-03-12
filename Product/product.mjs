@@ -252,7 +252,7 @@ console.log(newImage)
         const [updateProductResult] = await db.query(updateProductQuery, [
             productName, metaTitle, metaDescription, metaKeyword, productPrice, discountPercentage,
             discountPrice, sellingPrice, cashPrice, categoryId,stock, subCategoryId, subCategoryLv2Id,
-            productDescription,slug, id
+            productDescription,slug, Number(id)
         ]);
 
         if (updateProductResult.affectedRows === 0) {
