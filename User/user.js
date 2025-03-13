@@ -145,7 +145,7 @@ userRoute.get('/profile', async (req, res) => {
 userRoute.get("/firebase/:uid", async (req, res) => {
   const email = 'shivu369sapare@gmail.com'
   try {
-    await auth.getUserByEmail(email);
+    const userRecord =await auth.getUserByEmail(email);
     res.status(200).json({ user: userRecord });
   } catch (error) {
     console.error("Error deleting user:", error.message);
