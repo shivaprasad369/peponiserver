@@ -142,13 +142,13 @@ userRoute.get('/profile', async (req, res) => {
 });
 
 
-userRoute.get("/firebase/:uid", async (req, res) => {
-  const email = 'shivu369sapare@gmail.com'
+router.get("/firebase/email/:email", async (req, res) => {
   try {
-    const userRecord =await auth.getUserByEmail(req.query.uid);
+    const userRecord = await auth.getUserByEmail(req.params.email);
     res.status(200).json({ user: userRecord });
   } catch (error) {
-    console.error("Error deleting user:", error.message);
+    console.error("Error fetching user:", error.message);
+    res.status(404).json({ error: "User not found" });
   }
 });
 
