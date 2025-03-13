@@ -12,19 +12,21 @@ const __dirname = path.dirname(__filename);
 async function generateUniqueSlug(title) {
     let slug = slugify(title, { lower: true, strict: true });
   
-    let [existing] = await db.query("SELECT COUNT(*) AS count FROM tbl_products WHERE slug = ?", [slug]);
+    let [existing] = await db.query("SELECT COUNT(*) AS count FROM tbl_products WHERE ProductUrl = ?", [slug]);
   
     let count = existing[0].count;
     while (count > 0) {
       slug = `${slug}-${count}`;
-      [existing] = await db.query("SELECT COUNT(*) AS count FROM tbl_products WHERE slug = ?", [slug]);
+      [existing] = await db.query("SELECT COUNT(*) AS count FROM tbl_products WHERE ProductUrl = ?", [slug]);
       count = existing[0].count;
     }
   
     return slug;
   }
 productRoute.post('/', upload.fields([{ name: 'productImage' }, { name: 'ProductImages' }]), async (req, res) => {
+    const connection = await db.getConnection();
     try {
+        await connection.beginTransaction(); 
         const {
             productName,
             metaTitle,
@@ -37,7 +39,7 @@ productRoute.post('/', upload.fields([{ name: 'productImage' }, { name: 'Product
             Stock :Stock  ,
             cashPrice,
             categoryId,
-            subCategoryId:subCategoryId ,
+            subCategoryId,
             subCategoryLv2Id,
             productDescription,
             attributeValue
@@ -47,12 +49,13 @@ productRoute.post('/', upload.fields([{ name: 'productImage' }, { name: 'Product
         const productImages = req.files.ProductImages || [];
         const insertProductQuery = `
             INSERT INTO tbl_products(ProductName, MetaTitle, metaDescription, MetaKeyWords, ProductPrice, DiscountPercentage, 
-                                     DiscountPrice, SellingPrice, CashPrice, CategoryID, SubCategoryIDone, SubCategoryIDtwo, Description, Image,Stock,ProductUrl) 
+                                     DiscountPrice, SellingPrice, CashPrice, CategoryID, SubCategoryIDone, SubCategoryIDtwo, Description, Image,
+                                     Stock,ProductUrl) 
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?,?)`;
             const slug = await generateUniqueSlug(productName);
-       const [result] = await db.query(insertProductQuery, [
+       const [result] = await connection.query(insertProductQuery, [
             productName, metaTitle, metaDescription, metaKeyword, productPrice, discountPercentage, 
-            discountPrice, sellingPrice, cashPrice, categoryId, subCategoryId || 0, subCategoryLv2Id, productDescription, productImagePath,Stock,slug
+            discountPrice, sellingPrice, cashPrice, categoryId, subCategoryId || 0, subCategoryLv2Id || 0, productDescription, productImagePath,Stock,slug
         ]);
             if (result.affectedRows === 0) {
                 return res.status(500).json({ message: 'Error inserting product', error: err });
@@ -61,7 +64,7 @@ productRoute.post('/', upload.fields([{ name: 'productImage' }, { name: 'Product
                 const attributeValues = JSON.parse(attributeValue || "{}");
            
                 for (const [_, value] of Object.entries(attributeValues)) {
-                  await db.query(
+                  await connection.query(
                     "INSERT INTO tbl_productattribute (ProductID, AttributeValueID) VALUES (?, ?)",
                     [result.insertId, value]
                   );
@@ -75,18 +78,28 @@ productRoute.post('/', upload.fields([{ name: 'productImage' }, { name: 'Product
                 const imageValues = productImages.map(file => [
                     productId, path.join('uploads', file.filename)
                 ]);
-                const [result] = await db.query(insertImagesQuery, [imageValues]);
+                const [result] = await connection.query(insertImagesQuery, [imageValues]);
                 if (result.affectedRows === 0) {
                     return res.status(500).json({ message: 'Error inserting product images', error: err });
                 }
-                res.status(200).json({ message: 'Product and images added successfully' });
-            } else {
-                res.status(200).json({ message: 'Product added successfully, no additional images provided' });
-            }
+              
+            } 
+            
+            await connection.commit();
+
+            // ✅ Send success response only once
+            res.status(200).json({
+                message: productImages.length > 0 
+                    ? "Product and images added successfully" 
+                    : "Product added successfully, no additional images provided"
+            });
         }
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ message: 'Internal server error', error: err });
+    }catch (error) {
+        await connection.rollback(); // ❌ Rollback on failure
+        console.error(error);
+        res.status(500).json({ message: "Internal server error", error: error.message });
+    } finally {
+        connection.release(); // ✅ Always release the connection
     }
 });
 productRoute.get("/attributes", async (req, res) => {
@@ -251,8 +264,8 @@ console.log(newImage)
 
         const [updateProductResult] = await db.query(updateProductQuery, [
             productName, metaTitle, metaDescription, metaKeyword, productPrice, discountPercentage,
-            discountPrice, sellingPrice, cashPrice, categoryId,stock, subCategoryId, subCategoryLv2Id,
-            productDescription,slug, id
+            discountPrice, sellingPrice, cashPrice, categoryId,stock, subCategoryId || 0, subCategoryLv2Id || 0,
+            productDescription,slug, Number(id)
         ]);
 
         if (updateProductResult.affectedRows === 0) {

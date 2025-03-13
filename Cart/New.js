@@ -105,10 +105,10 @@ async function storeCartItem(req, res, retries = 3) {
     let checkParams = [];
 
     if (email) {
-      checkQuery = "SELECT Qty FROM tbl_finalcart WHERE ProductID = ? AND UserEmail=?";
+      checkQuery = "SELECT Qty FROM tbl_finalcart WHERE ProductID = ? AND UserEmail=? FOR UPDATE";
       checkParams.push(decodedProductID, email);
     } else {
-      checkQuery = "SELECT Qty FROM tbl_tempcart WHERE CartNumber=? AND ProductID = ? AND UserID=?";
+      checkQuery = "SELECT Qty FROM tbl_tempcart WHERE CartNumber=? AND ProductID = ? AND UserID=? FOR UPDATE";
       checkParams.push(cartItems.CartNumber, decodedProductID, 1);
     }
 

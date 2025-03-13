@@ -170,7 +170,7 @@ console.log(Attributes)
     let PresentedValues = [];
     for (const attribute of Attributes) {
       let attributeId = attribute.attributeId;
-      const [attributePresent] = await connection.query('SELECT * FROM attributes WHERE id=?', [attributeId]);
+      const [attributePresent] = await connection.query('SELECT * FROM attributes WHERE id=? FOR UPDATE', [attributeId]);
       if (attributePresent.length === 0) {
         const [insertResult] = await connection.query(
           `INSERT INTO attributes (attribute_name)
@@ -195,7 +195,7 @@ console.log(Attributes)
       }
      
       // console.log("attribute",attribute.values);
-      const [Present] = await connection.query("SELECT * FROM attribute_values WHERE id NOT IN (?) AND attribute_id = ?", [attribute.values.map(value => value.id),attributeId]);
+      const [Present] = await connection.query("SELECT * FROM attribute_values WHERE id NOT IN (?) AND attribute_id = ? LOCK IN SHARE MODE", [attribute.values.map(value => value.id),attributeId]);
       if(Present.length >0){
         const filteredPresent = Present.filter(value => !attribute.values.some(attrValue => attrValue.id === value.id));
         PresentedValues.push(filteredPresent);

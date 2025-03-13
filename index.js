@@ -87,20 +87,43 @@ app.get("/test-db", async (req, res) => {
   });
 
   const calculateTotalOrderAmount = (items) => {
-    return items * 100;
+    return Number(items) * 100;
 };
 
 app.post("/create-payment-intent", async (req, res) => {
     const { items } = req.body;
 
     const paymentIntent = await stripe.paymentIntents.create({
-        amount: calculateTotalOrderAmount(49),
+        amount: calculateTotalOrderAmount(items.GrandTotal),
         currency: "inr",
-        description: "This is for GFG St  ripe API Demo",
+        description: "Peponi Gallery, best art seller",
         automatic_payment_methods: {
             enabled: true,
         },
-      
+        shipping: {
+          name: `${items.ShippingFirstname} ${items.ShippingLastname}`,
+          phone: items.ShippingPhone,
+          address: {
+              line1: items.ShippingAddress,
+              line2: items.ShippingAddressLine2 || "",
+              city: items.ShippingCity,
+              state: items.ShippingState || "",
+              postal_code: items.ShippingPostalcode,
+              country: items.ShippingCountry,
+          },
+      },
+      metadata: {
+          billing_name: `${items.BillingFirstname} ${items.BillingLastname}`,
+          billing_email: items.BillingEmailID,
+          billing_phone: items.BillingPhone,
+          billing_address1: items.BillingAddress,
+          billing_address2: items.BillingAddressLine2 || "",
+          billing_city: items.BillingCity,
+          billing_state: items.BillingState || "",
+          billing_postal: items.BillingPostalcode,
+          billing_country: items.BillingCountry,
+          order_number: items.OrderNumber,
+      },
         
     });
 

@@ -75,7 +75,7 @@ adminroute.post("/login", async (req, res) => {
     const token = jwt.sign(
       { AdminID: user.id, UserName: user.username },
       process.env.JWT_SECRET,
-      { expiresIn: "2h" }
+      { expiresIn: "24h" }
     );
 
     console.log("✅ Login successful:", username, password);

@@ -35,7 +35,7 @@ newReviewRoute.get('/search', async (req, res) => {
         console.log(searchTerm,page,limit,tab,offset)
         if (searchTerm.trim() === '') {
             query = `
-                SELECT r.*,r.review_id as id, u.full_name as userName, p.ProductName,u.email as emailAddress FROM tbl_productreviews r
+                SELECT r.*,r.review_id as id, u.full_name as userName, p.ProductName,p.ProductUrl,u.email as emailAddress FROM tbl_productreviews r
         LEFT JOIN tbl_user u ON r.UserEmail = u.email
         LEFT JOIN tbl_products p ON r.Product_id = p.ProductID
         WHERE r.status=?
@@ -54,7 +54,7 @@ newReviewRoute.get('/search', async (req, res) => {
         } else {
             query = `
                 SELECT r.*, r.review_id as id, u.full_name as userName, 
-                    p.ProductName, u.email as emailAddress 
+                    p.ProductName,p.ProductUrl, u.email as emailAddress 
                 FROM tbl_productreviews r
                 LEFT JOIN tbl_user u ON r.UserEmail = u.email
                 LEFT JOIN tbl_products p ON r.Product_id = p.ProductID
@@ -69,7 +69,7 @@ newReviewRoute.get('/search', async (req, res) => {
                 LIMIT ? OFFSET ?
             `;
             const searchTerms = `%${searchTerm}%`;
-            queryParams = [Numver(tab), searchTerms, searchTerms, searchTerms, searchTerms, searchTerms, parseInt(limit), parseInt(offset)];
+            queryParams = [Number(tab), searchTerms, searchTerms, searchTerms, searchTerms, searchTerms, parseInt(limit), parseInt(offset)];
 
             countQuery = `
                 SELECT COUNT(*) as total 

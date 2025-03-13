@@ -142,16 +142,29 @@ userRoute.get('/profile', async (req, res) => {
 });
 
 
-userRoute.get("/firebase/:uid", async (req, res) => {
-  const email = 'shivu369sapare@gmail.com'
+userRoute.get("/firebase/email/:email", async (req, res) => {
   try {
-    await auth.deleteUser('6lkN9laSWINLfUTVINcKvWMM4kv2');
-    console.log(`User ${'6lkN9laSWINLfUTVINcKvWMM4kv2'} deleted successfully.`);
+    const userRecord = await auth.getUserByEmail(req.params.email);
+    res.status(200).json({ user: userRecord });
   } catch (error) {
-    console.error("Error deleting user:", error.message);
+    console.error("Error fetching user:", error.message);
+    res.status(404).json({ error: "User not found" });
   }
 });
+userRoute.delete("/firebase/email/:email", async (req, res) => {
+  try {
+    // Get user details by email
+    const userRecord = await auth.getUserByEmail(req.params.email);
 
+    // Delete user by UID
+    await auth.deleteUser(userRecord.uid);
+    
+    res.status(200).json({ message: `User with email ${req.params.email} deleted successfully.` });
+  } catch (error) {
+    console.error("Error deleting user:", error.message);
+    res.status(400).json({ error: error.message });
+  }
+});
 
 // Update Profile endpoint
 userRoute.post('/profile', upload.single('profilePicture'), async (req, res) => {
