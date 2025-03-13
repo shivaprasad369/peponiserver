@@ -142,7 +142,7 @@ userRoute.get('/profile', async (req, res) => {
 });
 
 
-router.get("/firebase/email/:email", async (req, res) => {
+userRoute.get("/firebase/email/:email", async (req, res) => {
   try {
     const userRecord = await auth.getUserByEmail(req.params.email);
     res.status(200).json({ user: userRecord });
