@@ -133,7 +133,8 @@ categoryUpdateRoute.put('/status/:id', async (req, res) => {
 
 categoryUpdateRoute.put("/:id", upload.single("NewImage"), async (req, res) => {
     const { id } = req.params;
-    const { CategoryName, Image,ParentCategoryID } = req.body;
+    const { CategoryName, Image,ParentCategoryID,Title,KeyWord,Description } = req.body;
+  
     const newImage = req.file;
     const slug = await generateUniqueSlug(CategoryName);
     // Validate required fields
@@ -159,8 +160,8 @@ categoryUpdateRoute.put("/:id", upload.single("NewImage"), async (req, res) => {
             updatedImagePath = path.join("uploads", newImage.filename);
         }
         const [updateResult] = await db.query(
-            "UPDATE tbl_category SET CategoryName = ?, Image = ?,ParentCategoryID=?,CatURL=? WHERE CategoryID = ?",
-            [CategoryName, updatedImagePath,ParentCategoryID, slug,id]
+            "UPDATE tbl_category SET CategoryName = ?, Image = ?,ParentCategoryID=?,CatURL=?,Title=?,KeyWord=?,Description=? WHERE CategoryID = ?",
+            [CategoryName, updatedImagePath,ParentCategoryID, slug,Title || '',KeyWord || "",Description || "", id]
         );
 
         if (updateResult.affectedRows === 0) {
