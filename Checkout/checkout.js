@@ -17,7 +17,7 @@ async function generateUniqueOrderNumber() {
       uniqueOrderNumber = `ORD${randomNumber}`;
 
       // Check uniqueness
-      const [rows] = await pool.query(
+      const [rows] = await db.query(
           "SELECT COUNT(*) as count FROM tbl_finalmaster WHERE OrderNumber = ?",
           [uniqueOrderNumber]
       );
