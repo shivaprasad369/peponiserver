@@ -5,14 +5,54 @@ import db from "../db/db.js";
 const cartRoute=express.Router()
 
 
-cartRoute.get("/generate-id", (req, res) => {
-    const now = new Date();
-    const dateStr = now.toISOString().split('T')[0].replace(/-/g, '');
-    const timeStr = now.toISOString().split('T')[1].split('.')[0].replace(/:/g, '');
-    const secondsStr = now.getSeconds().toString().padStart(2, '0'); // Get seconds with 2 digits
-    const uniqueId = `${dateStr}${timeStr}${secondsStr}`;
-    res.json({ id: uniqueId });
-  });
+// cartRoute.get("/generate-id", (req, res) => {
+//     const now = new Date();
+//     const dateStr = now.toISOString().split('T')[0].replace(/-/g, '');
+//     const timeStr = now.toISOString().split('T')[1].split('.')[0].replace(/:/g, '');
+//     const secondsStr = now.getSeconds().toString().padStart(2, '0'); // Get seconds with 2 digits
+//     const uniqueId = `${dateStr}${timeStr}${secondsStr}`;
+//     res.json({ id: uniqueId });
+//   });
+
+async function generateUniqueOrderNumber() {
+  let uniqueOrderNumber;
+  let isUnique = false;
+
+  while (!isUnique) {
+      // Generate OrderNumber (YYYYMMDDHHMMSS + Random 4 Digits)
+      const now = new Date();
+      const dateStr = now.toISOString().split("T")[0].replace(/-/g, "");
+      const timeStr = now.toISOString().split("T")[1].split(".")[0].replace(/:/g, "");
+      const randomStr = Math.floor(1000 + Math.random() * 9000); // 4-digit random number
+      uniqueOrderNumber = `${dateStr}${timeStr}${randomStr}`;
+
+      // Check if OrderNumber exists in tbl_finalMaster
+      const [rows] = await pool.query(
+          "SELECT COUNT(*) as count FROM tbl_finalmaster WHERE OrderNumber = ?",
+          [uniqueOrderNumber]
+      );
+
+      if (rows[0].count === 0) {
+          isUnique = true; // ID is unique
+      }
+  }
+
+  return uniqueOrderNumber;
+}
+
+// API route to get a unique OrderNumber
+cartRoute.get("/generate-order-number", async (req, res) => {
+  try {
+      const orderNumber = await generateUniqueOrderNumber();
+      // res.json({ orderNumber });
+      res.json({ id: orderNumber });
+  } catch (error) {
+      console.error("Error generating order number:", error);
+      res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+
   cartRoute.get("/get-cart-by-number", async (req, res) => {
     const { cartNumber, user,email } = req.query;
     if (!cartNumber ) {

@@ -6,13 +6,39 @@ import dotenv from "dotenv";
 dotenv.config();
 const checkout = express.Router();
 // POST endpoint to insert data into tbl_finalmaster
+async function generateUniqueOrderNumber() {
+  let uniqueOrderNumber;
+  let isUnique = false;
+
+  while (!isUnique) {
+      // Generate OrderNumber (YYYYMMDDHHMMSS + Random 4 Digits)
+      // const now = new Date();
+      // const dateStr = now.toISOString().split("T")[0].replace(/-/g, "");
+      // const timeStr = now.toISOString().split("T")[1].split(".")[0].replace(/:/g, "");
+      // const randomStr = Math.floor(1000 + Math.random() * 9000); // 4-digit random number
+      const randomNumber = Math.floor(10000000 + Math.random() * 90000000); // Ensures 8 digits
+      uniqueOrderNumber = `ORD${randomNumber}`;
+
+      // Check if OrderNumber exists in tbl_finalMaster
+      const [rows] = await db.query(
+          "SELECT COUNT(*) as count FROM tbl_finalmaster WHERE OrderNumber = ?",
+          [uniqueOrderNumber]
+      );
+      if (rows[0].count === 0) {
+          isUnique = true; // ID is unique
+      }
+  }
+
+  return uniqueOrderNumber;
+}
 async function processCheckout(req, res, retries = 3){
 const {
-  addressId, UserEmail, OrderNumber, BillingFirstname, BillingLastname, BillingAddress,
+  addressId, UserEmail, BillingFirstname, BillingLastname, BillingAddress,
   BillingAddressLine2, BillingEmailID, BillingPhone, BillingCity, BillingPostalcode, BillingCountry,
   ShippingFirstname, ShippingLastname, ShippingAddress, ShippingAddressLine2, ShippingEmailID,
   ShippingPhone, ShippingCity, ShippingPostalcode, ShippingCountry, GrandItemTotal, ShippingPrice, GrandTotal,
 } = req.body;
+const OrderNumber = await generateUniqueOrderNumber();
 
 let connection;
 
