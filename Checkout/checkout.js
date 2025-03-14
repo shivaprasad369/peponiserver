@@ -9,28 +9,30 @@ const checkout = express.Router();
 async function generateUniqueOrderNumber() {
   let uniqueOrderNumber;
   let isUnique = false;
+  const maxAttempts = 10; // Set a limit to prevent infinite loops
+  let attempts = 0;
 
-  while (!isUnique) {
-      // Generate OrderNumber (YYYYMMDDHHMMSS + Random 4 Digits)
-      // const now = new Date();
-      // const dateStr = now.toISOString().split("T")[0].replace(/-/g, "");
-      // const timeStr = now.toISOString().split("T")[1].split(".")[0].replace(/:/g, "");
-      // const randomStr = Math.floor(1000 + Math.random() * 9000); // 4-digit random number
-      const randomNumber = Math.floor(10000000 + Math.random() * 90000000); // Ensures 8 digits
+  while (!isUnique && attempts < maxAttempts) {
+      const randomNumber = Math.floor(10000000 + Math.random() * 90000000);
       uniqueOrderNumber = `ORD${randomNumber}`;
 
-      // Check if OrderNumber exists in tbl_finalMaster
-      const [rows] = await db.query(
+      // Check uniqueness
+      const [rows] = await pool.query(
           "SELECT COUNT(*) as count FROM tbl_finalmaster WHERE OrderNumber = ?",
           [uniqueOrderNumber]
       );
+
       if (rows[0].count === 0) {
-          isUnique = true; // ID is unique
+          isUnique = true;
+      } else {
+          attempts++;
       }
   }
 
+  if (!isUnique) throw new Error("Failed to generate a unique order number.");
   return uniqueOrderNumber;
 }
+
 async function processCheckout(req, res, retries = 3){
 const {
   addressId, UserEmail, BillingFirstname, BillingLastname, BillingAddress,
