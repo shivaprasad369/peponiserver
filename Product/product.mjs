@@ -258,14 +258,14 @@ console.log(newImage)
                 SubCategoryIDone = ?, 
                 SubCategoryIDtwo = ?, 
                 Description = ?,
-                ProductUrl=?
+               
             WHERE ProductID = ?
         `;
 
         const [updateProductResult] = await db.query(updateProductQuery, [
             productName, metaTitle, metaDescription, metaKeyword, productPrice, discountPercentage,
             discountPrice, sellingPrice, cashPrice, categoryId,stock, subCategoryId || 0, subCategoryLv2Id || 0,
-            productDescription,slug, Number(id)
+            productDescription,Number(id)
         ]);
 
         if (updateProductResult.affectedRows === 0) {
