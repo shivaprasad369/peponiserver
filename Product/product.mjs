@@ -257,7 +257,7 @@ console.log(newImage)
                 stock=?,
                 SubCategoryIDone = ?, 
                 SubCategoryIDtwo = ?, 
-                Description = ?,
+                Description = ?
                
             WHERE ProductID = ?
         `;
