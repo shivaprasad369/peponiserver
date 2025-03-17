@@ -236,35 +236,40 @@ userRoute.get('/', async (req, res) => {
     const limit = parseInt(req.query.limit) || 10; // Default to 10 records per page
     const offset = (page - 1) * limit;
     const tab = req.query.tab ? parseInt(req.query.tab) : 1; // Default to 1 (active users)
-
+    const searchTerm = req.query.searchTerm?.trim() || "";
     let isVerified, status;
 
     if (tab === 0) {
-      // Not verified users
-      isVerified = 0;
+      isVerified = 0; // Not verified users
       status = 1;
     } else if (tab === 1) {
-      // Active verified users
-      isVerified = 1;
+      isVerified = 1; // Active verified users
       status = 1;
     } else if (tab === 2) {
-      // Blocked users
-      isVerified = 1;
+      isVerified = 1; // Blocked users
       status = 0;
     } else {
       return res.status(400).json({ success: false, message: 'Invalid tab value' });
     }
 
-    // ✅ Fetch total user count
+    // ✅ Dynamic WHERE clause for search functionality
+    let searchQuery = '';
+    let searchParams = [];
+    if (searchTerm) {
+      searchQuery = `AND (full_name LIKE ? OR email LIKE ?)`;
+      searchParams = [`%${searchTerm}%`, `%${searchTerm}%`];
+    }
+
+    // ✅ Fetch total user count (with search condition)
     const [[{ totalUsers }]] = await db.query(
-      'SELECT COUNT(*) AS totalUsers FROM tbl_user WHERE is_verified = ? AND status = ?',
-      [isVerified, status]
+      `SELECT COUNT(*) AS totalUsers FROM tbl_user WHERE is_verified = ? AND status = ? ${searchQuery}`,
+      [isVerified, status, ...searchParams]
     );
 
-    // ✅ Fetch paginated users
+    // ✅ Fetch paginated users (with search condition)
     const [users] = await db.query(
-      'SELECT * FROM tbl_user WHERE is_verified = ? AND status = ? LIMIT ? OFFSET ?',
-      [isVerified, status, limit, offset]
+      `SELECT * FROM tbl_user WHERE is_verified = ? AND status = ? ${searchQuery} LIMIT ? OFFSET ?`,
+      [isVerified, status, ...searchParams, limit, offset]
     );
 
     res.json({
@@ -287,6 +292,7 @@ userRoute.get('/', async (req, res) => {
     });
   }
 });
+
 
 // userRoute.delete('/:id', async (req, res) => {
 //   try {

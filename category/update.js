@@ -136,7 +136,7 @@ categoryUpdateRoute.put("/:id", upload.single("NewImage"), async (req, res) => {
     const { CategoryName, Image,ParentCategoryID,Title,KeyWord,Description } = req.body;
   
     const newImage = req.file;
-    const slug = await generateUniqueSlug(CategoryName);
+    // const slug = await generateUniqueSlug(CategoryName);
     // Validate required fields
     if (!id || isNaN(id)) {
         return res.status(400).json({ message: "Invalid or missing Category ID" });
@@ -150,18 +150,21 @@ categoryUpdateRoute.put("/:id", upload.single("NewImage"), async (req, res) => {
         if (existingCategory.length === 0) {
             return res.status(404).json({ message: "Category not found" });
         }
-        let updatedImagePath = Image; 
+        let updatedImagePath = Image;
+     
         if (newImage) {
+            if(existingCategory[0].Image!==null){
             const existingImagePath = path.join(__dirname, "..", existingCategory[0].Image);
             if (fs.existsSync(existingImagePath)) {
                 fs.unlinkSync(existingImagePath);
                 console.log("Existing image deleted successfully");
             }
+        }
             updatedImagePath = path.join("uploads", newImage.filename);
         }
         const [updateResult] = await db.query(
-            "UPDATE tbl_category SET CategoryName = ?, Image = ?,ParentCategoryID=?,CatURL=?,Title=?,KeyWord=?,Description=? WHERE CategoryID = ?",
-            [CategoryName, updatedImagePath,ParentCategoryID, slug,Title || '',KeyWord || "",Description || "", id]
+            "UPDATE tbl_category SET CategoryName = ?, Image = ?,ParentCategoryID=?,Title=?,KeyWord=?,Description=? WHERE CategoryID = ?",
+            [CategoryName, updatedImagePath,ParentCategoryID || null,Title || "",KeyWord || "",Description || "", id]
         );
 
         if (updateResult.affectedRows === 0) {

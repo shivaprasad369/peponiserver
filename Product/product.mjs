@@ -203,7 +203,7 @@ productRoute.put("/:id", upload.fields([{ name: 'newImage' }, { name: 'ProductIm
         discountPrice, sellingPrice, cashPrice, categoryId, subCategoryId, subCategoryLv2Id, 
         productDescription, attributeValue, productImage,stock
     } = req.body;
-    const slug = await generateUniqueSlug(productName);
+    // const slug = await generateUniqueSlug(productName);
     const newImage = req.files.newImage ? req.files.newImage[0] : null; 
     let updatedImagePath = productImage; 
 console.log(newImage)

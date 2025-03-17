@@ -36,7 +36,8 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 paymentRoute.post('/create-payment-intent', async (req, res) => {
     try {
-      const { amount } = req.body;  
+      const { amount,item,amt } = req.body;  
+      console.log(amount,item,amt)
       let orderAmount = amount;
       let paymentIntent;
      

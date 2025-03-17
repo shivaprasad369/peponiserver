@@ -91,10 +91,10 @@ app.get("/test-db", async (req, res) => {
 };
 
 app.post("/create-payment-intent", async (req, res) => {
-    const { items } = req.body;
+    const { items,amt } = req.body;
 
     const paymentIntent = await stripe.paymentIntents.create({
-        amount: calculateTotalOrderAmount(items.GrandTotal),
+        amount: calculateTotalOrderAmount(amt),
         currency: "inr",
         description: "Peponi Gallery, best art seller",
         automatic_payment_methods: {

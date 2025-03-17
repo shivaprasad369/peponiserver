@@ -35,7 +35,7 @@ reportRoute.get("/sales", async (req, res) => {
                     SELECT p.ProductName, p.ProductID, u.full_name AS UserName, o.UserEmail, o.OrderNumber, o.OrderDate, o.Qty, o.Price, o.ItemTotal
                     FROM tbl_products p
                     JOIN tbl_order o ON p.ProductID = o.ProductID
-                    JOIN tbl_user u ON u.email = o.UserEmail
+                    LEFT JOIN tbl_user u ON u.email = o.UserEmail
                     WHERE YEAR(o.OrderDate) = ?
                     ORDER BY o.OrderDate ASC
                 `;
@@ -50,7 +50,7 @@ reportRoute.get("/sales", async (req, res) => {
                     SELECT p.ProductName, p.ProductID, u.full_name AS UserName, o.UserEmail, o.OrderNumber, o.OrderDate, o.Qty, o.Price, o.ItemTotal
                     FROM tbl_products p
                     JOIN tbl_order o ON p.ProductID = o.ProductID
-                    JOIN tbl_user u ON u.email = o.UserEmail
+                    LEFT JOIN tbl_user u ON u.email = o.UserEmail
                     WHERE o.OrderDate BETWEEN ? AND ?
                     ORDER BY o.OrderDate ASC
                 `;
@@ -64,7 +64,7 @@ reportRoute.get("/sales", async (req, res) => {
                         SELECT p.ProductName, p.ProductID, u.full_name AS UserName, o.UserEmail, o.OrderNumber, o.OrderDate, o.Qty, o.Price, o.ItemTotal
                         FROM tbl_products p
                         JOIN tbl_order o ON p.ProductID = o.ProductID
-                        JOIN tbl_user u ON u.email = o.UserEmail
+                        LEFT JOIN tbl_user u ON u.email = o.UserEmail
                         WHERE YEAR(o.OrderDate) = ? AND MONTH(o.OrderDate) BETWEEN 1 AND 6
                         ORDER BY o.OrderDate ASC
                     `;
@@ -73,7 +73,7 @@ reportRoute.get("/sales", async (req, res) => {
                         SELECT p.ProductName, p.ProductID, u.full_name AS UserName, o.UserEmail, o.OrderNumber, o.OrderDate, o.Qty, o.Price, o.ItemTotal
                         FROM tbl_products p
                         JOIN tbl_order o ON p.ProductID = o.ProductID
-                        JOIN tbl_user u ON u.email = o.UserEmail
+                       LEFT JOIN tbl_user u ON u.email = o.UserEmail
                         WHERE YEAR(o.OrderDate) = ? AND MONTH(o.OrderDate) BETWEEN 7 AND 12
                         ORDER BY o.OrderDate ASC
                     `;
@@ -96,7 +96,7 @@ reportRoute.get("/sales", async (req, res) => {
                     SELECT p.ProductName, p.ProductID, u.full_name AS UserName, o.UserEmail, o.OrderNumber, o.OrderDate, o.Qty, o.Price, o.ItemTotal
                     FROM tbl_products p
                     JOIN tbl_order o ON p.ProductID = o.ProductID
-                    JOIN tbl_user u ON u.email = o.UserEmail
+                    LEFT JOIN tbl_user u ON u.email = o.UserEmail
                     WHERE YEAR(o.OrderDate) = ? AND MONTH(o.OrderDate) BETWEEN ? AND ?
                     ORDER BY o.OrderDate ASC
                 `;
