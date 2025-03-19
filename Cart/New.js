@@ -234,12 +234,12 @@ async function storeCartItem(req, res, retries = 3) {
 
       if (email) {
         updateQuery = `
-                    UPDATE tbl_finalcart SET Qty = ?, ItemTotal = ?
+                    UPDATE tbl_finalcart SET Qty = ?,availbilty=1, ItemTotal = ?
                     WHERE UserEmail = ? AND ProductID = ?`;
         updateParams.push(newQty, itemTotal, email, Number(decodedProductID));
       } else {
         updateQuery = `
-                    UPDATE tbl_tempcart SET Qty = ?, ItemTotal = ?
+                    UPDATE tbl_tempcart SET Qty = ?, availbilty=1,ItemTotal = ?
                     WHERE CartNumber = ? AND ProductID = ? AND UserID=?`;
         updateParams.push(newQty, itemTotal, cartItems.CartNumber, Number(decodedProductID), 1);
       }
