@@ -9,6 +9,7 @@ detailRoute.get("/:id", async (req, res) => {
         if (!productId) {
             return res.status(400).json({ error: "Product ID is required" });
         }
+        console.log(req.params.id)
 // console.log(req.params.id)
         const query = `
             SELECT 
