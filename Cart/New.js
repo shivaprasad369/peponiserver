@@ -531,4 +531,47 @@ newCartRoute.delete("/delete-cart-item", async (req, res) => {
     return res.status(500).json({ error: "Failed to delete cart item" });
   }
 });
+
+
+newCartRoute.get('/check-cart',async(req,res)=>{
+  const {cartNumber,email,name} = req.query;
+  
+  console.log(req.query)
+ try {
+  let query = ``;
+  let qp=[]
+  if(email){
+    query += `SELECT COUNT(*) as count FROM tbl_finalcart
+    LEFT JOIN tbl_products ON tbl_finalcart.ProductID = tbl_products.ProductID
+     WHERE UserEmail=? AND 
+      tbl_products.ProductUrl = ? `
+     
+     
+    qp.push(email,name)
+  
+  }
+  else{
+    query += `SELECT COUNT(*) as count FROM tbl_tempcart
+    LEFT JOIN tbl_products ON tbl_tempcart.ProductID = tbl_products.ProductID
+     WHERE CartNumber=? AND
+      tbl_products.ProductUrl =? `
+
+
+    qp.push(cartNumber,name)
+  }
+  const [result] = await db.execute(
+    query,
+    qp
+  );
+  if(result[0].count > 0){
+    return res.status(200).json({Status:1})
+  }
+  else{
+    return res.status(200).json({Status:0})
+  }
+ } catch (error) {
+  console.error("Error checking cart item:", error);
+  
+ }
+})
 export default newCartRoute
