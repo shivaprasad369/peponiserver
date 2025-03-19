@@ -595,6 +595,15 @@ homeRoute.get("/check", async (req, res) => {
       return res.status(500).json({ error: error.message });
     }
   });
+
+
+
+  homeRoute.get('/get-max-price',async(req,res)=>{
+    const [maxprice]=await db.query(`
+        SELECT MAX(CashPrice) as maxprice FROM tbl_products
+        `);
+        res.status(200).json({message:'Max price fetched successfully',result:maxprice});
+  })
       
 
 
