@@ -20,12 +20,14 @@ detailRoute.get("/:id", async (req, res) => {
                 pr.rating, 
                 pr.review_text, 
                 pr.review_date, 
-                pr.review_title 
+                pr.review_title ,
+                 fc.FinalCartID
             FROM tbl_products p 
             LEFT JOIN tbl_productimages pi ON pi.ProductID = p.ProductID
             LEFT JOIN tbl_productattribute pa ON pa.ProductID = p.ProductID
             LEFT JOIN attribute_values av ON pa.AttributeValueID = av.id
             LEFT JOIN attributes a ON a.id = av.attribute_id
+            LEFT JOIN tbl_finalcart fc ON fc.ProductID = p.ProductID
             LEFT JOIN tbl_productreviews pr ON pr.product_id = p.ProductID
             WHERE p.ProductUrl = ?`;
 
@@ -45,6 +47,7 @@ detailRoute.get("/:id", async (req, res) => {
             Description: rows[0].Description,
             ProductPrice: rows[0].ProductPrice,
             Discount: rows[0].Discount,
+            CartPresented:rows[0].FinalCartID ? true : false,
             CashPrice: rows[0].CashPrice,
             Stock: rows[0].Stock,
             Status: rows[0].Status,

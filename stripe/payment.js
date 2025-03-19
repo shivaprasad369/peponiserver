@@ -138,7 +138,7 @@ paymentRoute.post('/create-payment-intent', async (req, res) => {
            FROM tbl_finalcart c 
            JOIN tbl_products p ON c.ProductID = p.ProductID 
            JOIN tbl_user u ON u.email = c.UserEmail 
-           WHERE c.UserEmail=?`,
+           WHERE c.UserEmail=? AND c.availbilty=1`,
           [email]
       );
 
@@ -174,7 +174,7 @@ paymentRoute.post('/create-payment-intent', async (req, res) => {
 
       // ✅ Delete Cart Items After Order is Confirmed
       const [deleteCart] = await connection.execute(
-          `DELETE FROM tbl_finalcart WHERE UserEmail=?`,
+          `DELETE FROM tbl_finalcart WHERE UserEmail=? AND availbilty=1`,
           [email]
       );
 

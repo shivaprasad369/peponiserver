@@ -15,6 +15,47 @@ newCartRoute.get("/get-cart-by-number", async (req, res) => {
   // if (!cartNumber || !email ) {
   //   return res.status(400).json({ error: "Invalid or missing CartNumber" });
   // }
+  let q=''
+  let qp=[]
+  if(email){
+    q='SELECT * FROM tbl_finalcart WHERE UserEmail=? '
+    qp=[email]
+    
+  }
+  else{
+    q='SELECT * FROM tbl_tempcart WHERE CartNumber=?'
+    qp=[cartNumber]
+    
+  }
+  let [rows] = await db.query(q, qp);
+  for (const data of rows) {  // ✅ Fixed syntax
+    const [checkAvailability] = await db.query(
+      `SELECT Stock FROM tbl_products WHERE ProductID=?`,
+      [data.ProductID]
+    );
+
+    if (checkAvailability.length > 0 && checkAvailability[0].Stock === 0) {
+      let updateQuery = email
+        ? `UPDATE tbl_finalcart SET availbilty=false WHERE FinalCartID=?`
+        : `UPDATE tbl_tempcart SET availbilty=false WHERE TempCartID=?`;
+
+      const [updateAvailability] = await db.query(updateQuery, [email ? data.FinalCartID : data.TempCartID]);
+
+      if (updateAvailability.affectedRows === 0) {
+        throw new Error(`Failed to update availability for product ${data.ProductID}`);
+      }
+    }else{
+      let updateQuery = email
+       ? `UPDATE tbl_finalcart SET availbilty=true WHERE FinalCartID=?`
+        : `UPDATE tbl_tempcart SET availbilty=true WHERE TempCartID=?`;
+        const [updateAvailability] = await db.query(updateQuery, [email? data.FinalCartID : data.TempCartID]);
+        if (updateAvailability.affectedRows === 0) {
+        throw new Error(`Failed to update availability for product ${data.ProductID}`);
+      }
+    }
+  }
+
+ 
   let query = ''
   try {
     if (email) {
@@ -30,6 +71,7 @@ newCartRoute.get("/get-cart-by-number", async (req, res) => {
             FROM tbl_products p
             JOIN tbl_finalcart tc ON p.ProductID = tc.ProductID
             JOIN tbl_category c ON c.CategoryID = p.CategoryID
+           
           `;
     } else {
       query = `
@@ -45,7 +87,7 @@ newCartRoute.get("/get-cart-by-number", async (req, res) => {
         FROM tbl_products p
         JOIN tbl_tempcart tc ON p.ProductID = tc.ProductID
         JOIN tbl_category c ON c.CategoryID = p.CategoryID
-      `;
+       `;
     }
     let queryParams = [];
 
@@ -72,7 +114,69 @@ newCartRoute.get("/get-cart-by-number", async (req, res) => {
     return res.status(500).json({ error: "An unexpected error occurred" });
   }
 });
+newCartRoute.get("/Checkout/get-cart-by-number", async (req, res) => {
+  const { cartNumber, email } = req.query;
+  // if (!cartNumber || !email ) {
+  //   return res.status(400).json({ error: "Invalid or missing CartNumber" });
+  // }
+  let query = ''
+  try {
+    if (email) {
+      query = `
+            SELECT 
+              p.SellingPrice,
+              p.Image,
+              tc.*,
+              p.Stock,
+              p.ProductName,
+              p.ProductPrice,
+              c.CategoryName,p.ProductUrl
+            FROM tbl_products p
+            JOIN tbl_finalcart tc ON p.ProductID = tc.ProductID
+            JOIN tbl_category c ON c.CategoryID = p.CategoryID
+           
+          `;
+    } else {
+      query = `
+        SELECT 
+          p.SellingPrice,
+          p.Image,
+          tc.*,
+          p.Stock,
+          p.ProductName,
+          p.ProductPrice,
+          c.CategoryName,
+          p.ProductUrl
+        FROM tbl_products p
+        JOIN tbl_tempcart tc ON p.ProductID = tc.ProductID
+        JOIN tbl_category c ON c.CategoryID = p.CategoryID
+       `;
+    }
+    let queryParams = [];
 
+    if (email) {
+      query += `WHERE tc.UserEmail = ? AND tc.availbilty=true`;
+      queryParams.push(email);
+    } else {
+      query += `WHERE tc.CartNumber = ? AND tc.availbilty=true`;
+      queryParams.push(cartNumber);
+    }
+
+    const [rows] = await db.query(query, queryParams);
+    // console.log(rows)
+    if (rows.length === 0) {
+      return res.status(404).json({ message: "No cart items found" });
+    }
+
+    return res.status(200).json({
+      message: "Cart items retrieved successfully",
+      data: rows,
+    });
+  } catch (error) {
+    console.error("Error retrieving cart data:", error);
+    return res.status(500).json({ error: "An unexpected error occurred" });
+  }
+});
 
 async function storeCartItem(req, res, retries = 3) {
   const { cartItems, email } = req.body;
@@ -222,7 +326,7 @@ newCartRoute.post("/store-cart", async (req, res) => {
 });
 
 newCartRoute.put("/update-quantity", async (req, res) => {
-  const { id, userId, number, email } = req.body;
+  const { id, userId, number, email,ProductUrl } = req.body;
 
   if (!userId || !number || !number.qty || !number.action) {
     return res.status(400).json({
@@ -241,6 +345,14 @@ newCartRoute.put("/update-quantity", async (req, res) => {
     const operation = number.action === "increment" ? "+" : "-";
     let checkQuery = ``
     let checkParams = [];
+    const [getQty] = await db.execute(
+      `SELECT Stock FROM tbl_products
+      WHERE ProductUrl =?`,
+      [ProductUrl]
+    );
+    if (getQty[0].Stock === 0) {
+      return res.status(404).json({ error: "Product Quantity not existed" });
+    }
     if (email) {
       checkQuery += `
         UPDATE tbl_finalcart 
