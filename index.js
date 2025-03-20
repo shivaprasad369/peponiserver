@@ -45,7 +45,7 @@ const pool = mysql.createPool({
     // host: '18.168.176.225',     
     host:'localhost',      
     user: 'root', 
-    password: 'Admin@123',           
+    password:'Admin@123',           
     // password: '',    
     database: "peponi",
     waitForConnections: true,
