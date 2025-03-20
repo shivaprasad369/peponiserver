@@ -35,8 +35,27 @@ import Stripe from 'stripe';
 import orderRoute from './order/order.js';
 import newReviewRoute from './review/NewReview.js';
 import reportRoute from './Report/report.js';
+
+import notfyRoute from './HomePage/notification.js';
+import mysql from 'mysql2/promise';
+
+
+const pool = mysql.createPool({
+    // host: '18.168.176.225',     
+    host:'localhost',      
+    user: 'root', 
+    // password: process.env.DB_PASSWORD,           
+    password: '',    
+    database: "peponi",
+    waitForConnections: true,
+    connectionLimit: 10,       // Adjust based on your workload
+    queueLimit: 0,            // No limit on the queue
+    connectTimeout: 10000,    // 10 seconds
+});
 const numCPUs = os.cpus().length; 
 const app = express()
+
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -44,6 +63,7 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 // const stripe = require("stripe")('sk_test_51P25vZSAtyRKeDt751BHgHIA7gpHGGKgVRB9N4oreEa2xmwK8Wv7Oj2YzZ63EYLa2pvuW6J4UsnOjbSZ7oWpVln200l5pi3kVu');
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 // app.use(cors());
+
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(cors({ origin: "*" }));
@@ -75,6 +95,7 @@ app.use('/payment',paymentRoute)
 app.use('/order',orderRoute)
 app.use('/newreview',newReviewRoute)
 app.use('/report',reportRoute)
+app.use('/notification',notfyRoute)
 app.get("/test-db", async (req, res) => {
     console.log("connected");
     try {
@@ -131,7 +152,48 @@ app.post("/create-payment-intent", async (req, res) => {
         clientSecret: paymentIntent.client_secret,
     });
 });
+let clients = [];
+// WebSocket connection
+app.get("/events", (req, res) => {
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
 
+  clients.push(res);
+
+  req.on("close", () => {
+      clients = clients.filter(client => client !== res);
+  });
+});
+
+// 🔥 Function to send updates to clients
+const sendNotifications = async () => {
+  try {
+      const [latestOrder] = await pool.query(
+          "SELECT * FROM tbl_order WHERE OrderDate >= NOW() - INTERVAL 1 DAY ORDER BY OrderDate DESC LIMIT 5"
+      );
+      const [latestUser] = await pool.query(
+          "SELECT * FROM tbl_user WHERE created_at >= NOW() - INTERVAL 1 DAY ORDER BY created_at DESC LIMIT 5"
+      );
+      const [latestContact] = await pool.query(
+        "SELECT * FROM tbl_contact WHERE CreatedAt >= NOW() - INTERVAL 1 DAY ORDER BY CreatedAt DESC LIMIT 5"
+    );
+      const data = {
+          orders: latestOrder.length > 0 ? latestOrder: null,
+          users: latestUser.length > 0 ? latestUser: null,
+          contact: latestContact.length > 0? latestContact: null,
+      };
+
+      clients.forEach(client => {
+          client.write(`data: ${JSON.stringify(data)}\n\n`);
+      });
+  } catch (error) {
+      console.error("Error fetching notifications:", error);
+  }
+};
+
+// 🔥 Polling database every 5 seconds (or use MySQL triggers for real-time)
+setInterval(sendNotifications, 5000);
 
 
 
