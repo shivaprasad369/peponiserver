@@ -35,17 +35,18 @@ import Stripe from 'stripe';
 import orderRoute from './order/order.js';
 import newReviewRoute from './review/NewReview.js';
 import reportRoute from './Report/report.js';
-
+import dotenv from "dotenv";
 import notfyRoute from './HomePage/notification.js';
 import mysql from 'mysql2/promise';
 
+dotenv.config();
 
 const pool = mysql.createPool({
     // host: '18.168.176.225',     
     host:'localhost',      
     user: 'root', 
-    // password: process.env.DB_PASSWORD,           
-    password: '',    
+    password: process.env.DB_PASSWORD,           
+    // password: '',    
     database: "peponi",
     waitForConnections: true,
     connectionLimit: 10,       // Adjust based on your workload
